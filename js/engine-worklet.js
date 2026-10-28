@@ -30,8 +30,46 @@
 const TWO_PI = Math.PI * 2;
 const FIRING_ORDER = [0, 5, 1, 3, 2, 4]; // cylinders 1-6-2-4-3-5 (0-based)
 const BANK_OF = [0, 0, 0, 1, 1, 1]; // 1-3 left bank, 4-6 right bank
-const CYL_GAIN = [1.0, 0.93, 1.05, 0.97, 1.03, 0.91]; // static imbalance
+const CYL_GAIN = [1.0, 0.92, 1.06, 0.96, 1.04, 0.9]; // static imbalance
 const TABLE = 2048;
+
+/**
+ * Voicing: the knobs that give the engine its character. Tuned deep and
+ * hollow, GT3-style: the two banks' pulses reach the tailpipes slightly out
+ * of step and with different strength, which brings out the boxer's 1.5
+ * engine order an octave below the firing note. It survives mono playback,
+ * so the car's subwoofer gets it too.
+ */
+const VOICE = {
+  blowdownMs: 9.5, // exhaust pulse length: longer is rounder and deeper
+  scavenge: 0.18, // depth of the dip after each pulse (more = thinner, less bass)
+  bankLag: 0.24, // right bank arrives this many firing intervals late...
+  bankLagHigh: 0.12, // ...plus this much more at the redline
+  bankGain: 0.78, // ...and this much weaker (left bank = 1)
+  crack: 0.25, // combustion bite on top of each pulse
+  flowNoise: 0.6, // turbulence riding on the pulses
+  headers: [0.0058, 0.0069], // header pipe round trips (s): low resonances
+  headerFeedback: -0.45,
+  headerDamping: 2400, // Hz
+  tails: [0.0021, 0.0024], // tailpipe combs (s)
+  tailFeedback: 0.2,
+  tailDamping: 4200, // Hz
+  // Body / muffler resonances: [Hz, Q, gain].
+  body: [
+    [82, 1.0, 1.0],
+    [178, 1.5, 0.78],
+    [385, 2.2, 0.45],
+    [900, 2.6, 0.2],
+    [2100, 2.2, 0.08],
+  ],
+  dry: 0.45, // unresonated exhaust in the mix
+  pan: 0.6, // bank stereo spread (0.5 = mono)
+  intake: { plenum: 120, runner: 380, howl: 900, rush: 1200, level: 0.7 },
+  sub: { order3: 0.22, order15: 0.2, order1: 0.05 }, // sine layer levels
+  bassShelf: { freq: 150, gainDb: 5 },
+  toneMin: 600, // Hz: closed exhaust, idle
+  toneRange: 5600, // Hz added at full throttle and revs
+};
 
 // ---------------------------------------------------------------------------
 // Lookup tables
@@ -56,7 +94,7 @@ const INTAKE = new Float32Array(TABLE + 1);
     const g = Math.pow(x / peak, k) * Math.exp(k * (1 - x / peak));
     const taper = x < 0.8 ? 1 : 0.5 + 0.5 * Math.cos((Math.PI * (x - 0.8)) / 0.2);
     bump[i] = g * taper;
-    const dip = 0.38 * Math.exp(-Math.pow((x - 0.48) / 0.13, 2)) * taper;
+    const dip = VOICE.scavenge * Math.exp(-Math.pow((x - 0.48) / 0.13, 2)) * taper;
     PULSE[i] = bump[i] - dip;
     maxP = Math.max(maxP, Math.abs(PULSE[i]));
   }
@@ -148,6 +186,22 @@ class Biquad {
     return this;
   }
 
+  /** RBJ low shelf (slope 1). */
+  lowshelf(sr, f, gainDb) {
+    const A = Math.pow(10, gainDb / 40);
+    const w = (TWO_PI * f) / sr;
+    const cw = Math.cos(w);
+    const alpha = (Math.sin(w) / 2) * Math.SQRT2;
+    const sa = 2 * Math.sqrt(A) * alpha;
+    const a0 = A + 1 + (A - 1) * cw + sa;
+    this.b0 = (A * (A + 1 - (A - 1) * cw + sa)) / a0;
+    this.b1 = (2 * A * (A - 1 - (A + 1) * cw)) / a0;
+    this.b2 = (A * (A + 1 - (A - 1) * cw - sa)) / a0;
+    this.a1 = (-2 * (A - 1 + (A + 1) * cw)) / a0;
+    this.a2 = (A + 1 + (A - 1) * cw - sa) / a0;
+    return this;
+  }
+
   run(x) {
     const y = this.b0 * x + this.z1;
     this.z1 = this.b1 * x - this.a1 * y + this.z2;
@@ -232,26 +286,22 @@ export class FlatSixSynth {
     this.cylDrift = new Float32Array(6).fill(1);
 
     // Pipes: headers per bank (different lengths), then tailpipes per side.
-    this.header = [new Pipe(sr, 0.0036, -0.38, 3800), new Pipe(sr, 0.0041, -0.38, 3600)];
-    this.tail = [new Pipe(sr, 0.00115, 0.26, 7000), new Pipe(sr, 0.00127, 0.26, 7000)];
+    const V = VOICE;
+    this.header = V.headers.map((d) => new Pipe(sr, d, V.headerFeedback, V.headerDamping));
+    this.tail = V.tails.map((d) => new Pipe(sr, d, V.tailFeedback, V.tailDamping));
 
-    // Fixed body/exhaust resonances (per channel): [freq, Q, gain].
-    this.formantSpec = [
-      [118, 1.4, 0.6],
-      [340, 2.2, 0.45],
-      [760, 3.0, 0.42],
-      [1650, 3.2, 0.3],
-      [3300, 2.5, 0.18],
-    ];
+    // Fixed body/exhaust resonances (per channel).
+    this.formantSpec = V.body;
     this.formants = [0, 1].map(() => this.formantSpec.map(([f, q]) => new Biquad().bandpass(sr, f, q)));
     this.tone = [new Biquad(), new Biquad()];
+    this.bass = [0, 1].map(() => new Biquad().lowshelf(sr, V.bassShelf.freq, V.bassShelf.gainDb));
     this.dc = [new Biquad().highpass(sr, 24, 0.6), new Biquad().highpass(sr, 24, 0.6)];
 
     // Intake.
-    this.plenum = new Biquad().bandpass(sr, 180, 2.5);
-    this.runner = new Biquad().bandpass(sr, 620, 4);
-    this.howl = new Biquad().bandpass(sr, 1450, 3.5);
-    this.airRush = new Biquad().bandpass(sr, 1900, 0.7);
+    this.plenum = new Biquad().bandpass(sr, V.intake.plenum, 2);
+    this.runner = new Biquad().bandpass(sr, V.intake.runner, 3);
+    this.howl = new Biquad().bandpass(sr, V.intake.howl, 2.8);
+    this.airRush = new Biquad().bandpass(sr, V.intake.rush, 0.7);
 
     // Mechanical ticking and starter.
     this.tickEnv = 0;
@@ -300,21 +350,21 @@ export class FlatSixSynth {
     const load = this.load;
     const open = this.exhaust;
 
-    const cutoff = 1500 + 11000 * (0.3 + 0.7 * open) * (0.25 + 0.75 * load) * (0.35 + 0.65 * rpmN);
+    const cutoff = VOICE.toneMin + VOICE.toneRange * (0.3 + 0.7 * open) * (0.3 + 0.7 * load) * (0.35 + 0.65 * rpmN);
     this.tone[0].lowpass(sr, cutoff, 0.6);
     this.tone[1].lowpass(sr, cutoff, 0.6);
 
     const fg = this.formantGain;
     const spec = this.formantSpec;
-    fg[0] = spec[0][2] * (1.15 - 0.5 * rpmN);
-    fg[1] = spec[1][2];
-    fg[2] = spec[2][2] * (0.7 + 0.5 * open);
+    fg[0] = spec[0][2] * (1.2 - 0.4 * rpmN);
+    fg[1] = spec[1][2] * (0.9 + 0.35 * rpmN); // keep the low-mid body at high revs
+    fg[2] = spec[2][2] * (0.7 + 0.5 * open) * (1.1 - 0.4 * rpmN);
     fg[3] = spec[3][2] * (0.4 + 0.9 * load) * (0.6 + 0.4 * open);
     fg[4] = spec[4][2] * (0.2 + 1.1 * load * rpmN) * open;
 
-    this.drive = 1.3 + 2.4 * load * (0.5 + 0.5 * rpmN);
+    this.drive = 1.2 + 1.8 * load * (0.5 + 0.5 * rpmN);
     // Loudness follows revs and throttle: a quiet idle, a loud wide-open wail.
-    const db = Math.min(0, -21 + 13 * Math.pow(rpmN, 0.7) + 6 * load);
+    const db = Math.min(0, -27.5 + 16.5 * Math.pow(rpmN, 0.7) + 7 * load);
     this.loudness = Math.pow(10, db / 20);
 
     // Each cylinder's strength drifts slowly (no two cycles are the same).
@@ -344,13 +394,16 @@ export class FlatSixSynth {
     } else {
       amp = 0.07 * CYL_GAIN[cyl]; // just air being pumped (cranking, cuts, shutdown)
     }
-    ev.amp = amp;
+    // The right bank's pulses arrive a little later and weaker (unequal
+    // paths to the tailpipes): that is what makes the deep 1.5-order note.
+    const lag = bank === 1 ? VOICE.bankLag + VOICE.bankLagHigh * rpmN : 0;
+    ev.amp = amp * (bank === 1 ? VOICE.bankGain : 1);
     ev.crack = combustion ? 0.2 + 1.0 * load : 0;
-    // The blowdown is fast whatever the revs (~6.5 ms), so at low RPM the
-    // pulses are short, separate beats; at high RPM they merge into a wail.
-    ev.width = Math.min(1.5, Math.max(0.32, (0.0065 * Math.max(this.rpm, 100)) / 20));
+    // The blowdown takes about the same time whatever the revs, so at low RPM
+    // the pulses are separate beats; at high RPM they merge into a wail.
+    ev.width = Math.min(1.6, Math.max(0.42, ((VOICE.blowdownMs / 1000) * Math.max(this.rpm, 100)) / 20));
     // Timing jitter: more at idle, tiny at high revs.
-    ev.age = -n.unit() * (0.03 - 0.022 * rpmN);
+    ev.age = -lag - n.unit() * (0.03 - 0.022 * rpmN);
 
     // Strength of this cylinder's intake stroke.
     this.intakeAmp = (0.25 + 0.75 * load) * (t.ignition > 0.5 ? 1 : 0.4);
@@ -448,13 +501,13 @@ export class FlatSixSynth {
         ev.age += dSlot;
         if (ev.age >= 0 && ev.age < ev.width) {
           const x = ev.age / ev.width;
-          const v = ev.amp * (lookup(PULSE, x) + ev.crack * 0.45 * lookup(CRACK, x));
+          const v = ev.amp * (lookup(PULSE, x) + ev.crack * VOICE.crack * lookup(CRACK, x));
           if (b === 0) bankL = v;
           else bankR = v;
         }
       }
       // Turbulent flow noise rides on the pulses.
-      const flow = n.next() * (0.05 + 0.18 * load) * rpmN;
+      const flow = n.next() * (0.05 + 0.18 * load) * rpmN * VOICE.flowNoise;
       bankL += flow * Math.abs(bankL);
       bankR += flow * Math.abs(bankR);
 
@@ -470,12 +523,13 @@ export class FlatSixSynth {
       // --- pipes ---
       const hL = hp[0].run(bankL);
       const hR = hp[1].run(bankR);
-      let exL = tp[0].run(0.68 * hL + 0.32 * hR);
-      let exR = tp[1].run(0.32 * hL + 0.68 * hR);
+      const pan = VOICE.pan;
+      let exL = tp[0].run(pan * hL + (1 - pan) * hR);
+      let exR = tp[1].run((1 - pan) * hL + pan * hR);
 
       // --- body resonances ---
-      let rL = exL * 0.35;
-      let rR = exR * 0.35;
+      let rL = exL * VOICE.dry;
+      let rR = exR * VOICE.dry;
       for (let k = 0; k < 5; k++) {
         rL += fL[k].run(exL) * fg[k] * 4;
         rR += fR[k].run(exR) * fg[k] * 4;
@@ -491,13 +545,17 @@ export class FlatSixSynth {
       const env = Math.max(0, intake) * 1.6 + 0.15;
       const rush = this.airRush.run(n.next() * env) * Math.pow(load, 1.5) * Math.pow(rpmN, 1.2) * 0.6;
       const inSig =
-        (this.plenum.run(intake) * 0.9 + this.runner.run(intake) * 1.1 + this.howl.run(intake) * 0.9) * inGain + rush;
+        ((this.plenum.run(intake) * 1.0 + this.runner.run(intake) * 0.7 + this.howl.run(intake) * 0.35) * inGain + rush * 0.6) *
+        VOICE.intake.level;
 
       // --- sub-bass: firing order (3rd) and the boxer's 1.5 order ---
+      const S = VOICE.sub;
       const sub =
-        (sinCycles(this.cycle * 6) * 0.16 + sinCycles(this.cycle * 3 + 0.13) * 0.06) *
-        (0.35 + 0.65 * load) *
-        (1.3 - 0.9 * rpmN) *
+        (sinCycles(this.cycle * 6) * S.order3 +
+          sinCycles(this.cycle * 3 + 0.13) * S.order15 +
+          sinCycles(this.cycle * 2 + 0.31) * S.order1) *
+        (0.45 + 0.55 * load) *
+        (1.4 - 0.8 * rpmN) *
         (t.ignition > 0.5 ? 1 : 0.3);
 
       // --- mechanical: valve-train ticks and a faint gear whine ---
@@ -539,8 +597,8 @@ export class FlatSixSynth {
       const center = inSig * 0.55 + sub + mech;
       let L = (exL + center) * this.gate;
       let R = (exR + center) * this.gate;
-      L = this.tone[0].run(L);
-      R = this.tone[1].run(R);
+      L = this.bass[0].run(this.tone[0].run(L));
+      R = this.bass[1].run(this.tone[1].run(R));
       // Crack of the pop on top, unfiltered.
       L += pop * (1 - this.popPan) * 0.5;
       R += pop * this.popPan * 0.5;
@@ -563,7 +621,7 @@ export class FlatSixSynth {
     for (const p of this.header) p.reset();
     for (const p of this.tail) p.reset();
     for (const bank of this.formants) for (const f of bank) f.reset();
-    for (const f of [...this.tone, ...this.dc, this.plenum, this.runner, this.howl, this.airRush, this.starterBp]) f.reset();
+    for (const f of [...this.tone, ...this.bass, ...this.dc, this.plenum, this.runner, this.howl, this.airRush, this.starterBp]) f.reset();
     this.popEnv = 0;
     this.thumpEnv = 0;
     this.bankEv[0].age = this.bankEv[1].age = 99;

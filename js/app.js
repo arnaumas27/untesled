@@ -325,13 +325,16 @@ function refreshStatus() {
   if (p.connected) {
     const cal = {
       ok: 'Calibrated',
-      guess: 'Assuming an upright mount',
+      guess: 'Ready; fine-tunes as you drive',
       learning: 'Learning; drive off normally',
       none: '–',
       sim: '–',
     };
+    const tilt = fused.tilt != null ? `, ${Math.round(fused.tilt)}°` : '';
+    const mounts = { dock: `Tesla dock${tilt}`, upright: `Upright holder${tilt}`, flat: `Lying flat${tilt}` };
     ui.setPhoneFacts({
       device: p.device,
+      mount: p.streaming && fused.mount ? mounts[fused.mount] : '–',
       calibration: p.streaming ? cal[fused.calibration] : 'Waiting for motion data',
       rate: p.streaming ? `${Math.round(p.hz)} per second` : '–',
       rtt: p.rtt != null ? `${Math.round(p.rtt)} ms` : '–',

@@ -75,7 +75,14 @@ export class CarUI {
       simToggle: $('simToggle'),
       gDot: $('gDot'),
       chips: { gps: $('chipGps'), phone: $('chipPhone'), input: $('chipInput') },
-      facts: { cal: $('factCal'), rate: $('factRate'), rtt: $('factRtt'), relay: $('factRelay'), device: $('phoneDevice') },
+      facts: {
+        mount: $('factMount'),
+        cal: $('factCal'),
+        rate: $('factRate'),
+        rtt: $('factRtt'),
+        relay: $('factRelay'),
+        device: $('phoneDevice'),
+      },
       panels: { pair: $('panelPair'), phone: $('panelPhone'), gps: $('panelGps'), sim: $('panelSim') },
     };
     this.handlers = {};
@@ -310,9 +317,10 @@ export class CarUI {
     if (el.dataset.tone !== tone) el.dataset.tone = tone;
   }
 
-  setPhoneFacts({ device, calibration, rate, rtt, relay }) {
+  setPhoneFacts({ device, mount, calibration, rate, rtt, relay }) {
     const f = this.el.facts;
     setText(f.device, device || '');
+    setText(f.mount, mount);
     setText(f.cal, calibration);
     setText(f.rate, rate);
     setText(f.rtt, rtt);

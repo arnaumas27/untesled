@@ -169,3 +169,46 @@ test('position-derived GPS speed (about 1.3 s old) does not drag the estimate', 
   assert.ok(withLag < 0.6, `speed error with the fix's lag: ${withLag.toFixed(2)} m/s`);
   assert.ok(withLag < naive, `better than assuming 0.3 s (${naive.toFixed(2)} m/s)`);
 });
+
+/** Phone lying in the Tesla console dock: tray tilted `deg` up towards the dash. */
+function dock(deg, way = 'top-forward') {
+  const r = (deg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  const rows = {
+    // phone axes (x right, y top, z out of screen) expressed in car axes
+    'top-forward': [[0, -1, 0], [c, 0, s], [-s, 0, c]],
+    'top-back': [[0, 1, 0], [-c, 0, -s], [-s, 0, c]],
+    landscape: [[c, 0, s], [0, 1, 0], [-s, 0, c]],
+  }[way];
+  return (v) => rows.map((row) => row[0] * v[0] + row[1] * v[1] + row[2] * v[2]);
+}
+
+for (const deg of [35, 45, 55]) {
+  for (const way of ['top-forward', 'top-back', 'landscape']) {
+    test(`Tesla dock at ${deg}°, ${way}: throttle is right from the first second`, () => {
+      const f = new Fusion();
+      const toPhone = dock(deg, way);
+      const errs = [];
+      // 3 s of hard acceleration, before any GPS calibration can exist.
+      for (let ms = 0; ms < 3000; ms += 40) {
+        const a = ms > 500 ? 3 : 0;
+        f.addPhone({ t: ms, a: toPhone([a, 0, 0]), g: toPhone([0, 0, 9.81]), rot: 2 });
+        const s = f.update(ms);
+        if (ms > 900) errs.push(Math.abs(s.accel - a));
+      }
+      const s = f.update(3000);
+      assert.equal(s.calibration, 'guess');
+      assert.equal(s.mount, 'dock');
+      assert.ok(Math.abs(s.tilt - deg) < 1, `tilt ${s.tilt.toFixed(1)}°`);
+      assert.ok(Math.max(...errs) < 0.1, `max accel error ${Math.max(...errs).toFixed(3)} m/s²`);
+    });
+  }
+}
+
+test('Tesla dock: GPS calibration confirms the guess', () => {
+  const f = new Fusion();
+  const res = simulate(f, dock(45), 90);
+  assert.equal(res.state.calibration, 'ok');
+  assert.ok(res.accelRms < 0.35, `accel error ${res.accelRms.toFixed(2)} m/s²`);
+});

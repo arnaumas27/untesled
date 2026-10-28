@@ -50,6 +50,8 @@ export class PhoneAxes {
   reset() {
     this.handledSince = null;
     this.remount = false;
+    this.mount = null; // 'dock' | 'upright' | 'flat'
+    this.tilt = null; // degrees from lying flat
     this.up = null; // fast-filtered up vector
     this.upSlow = null; // slow-filtered up vector
     this.basisUp = null; // up vector when the current basis was built
@@ -125,16 +127,23 @@ export class PhoneAxes {
     this.refAxis = ref;
     this.basisUp = up.slice();
 
-    // Typical mounts: upright in a holder with the screen facing the driver
-    // (forward = behind the screen, -z), or lying flat with its top pointing
-    // forward (+y). Upright is a safe bet; flat could just as well face back.
-    const flat = Math.abs(up[2]) > 0.75;
-    const d = flat ? [0, 1, 0] : [0, 0, -1];
+    // Where is forward? Whenever the screen faces the people in the car,
+    // forward is "behind the screen" (-z), flattened to horizontal. That holds
+    // for the Tesla phone dock (the console tray rises towards the dash, so a
+    // phone in it leans back ~45° with the screen facing up and back, however
+    // it is rotated in the tray) and for upright dash or vent holders. A phone
+    // lying flat gives no such hint: guess its top points forward (+y), but
+    // don't trust that until the GPS calibration confirms it.
+    this.tilt = (Math.acos(clamp(up[2], -1, 1)) * 180) / Math.PI; // 0 = flat, screen up
+    const behind = sub([0, 0, -1], scale(up, -up[2])); // horizontal part of -z
+    const facesUs = up[2] > -0.2 && len(behind) > 0.3; // tilted ≥ ~17°
+    const d = facesUs ? [0, 0, -1] : [0, 1, 0];
+    this.mount = !facesUs ? 'flat' : this.tilt < 70 ? 'dock' : 'upright';
     const { e1, e2 } = this._basis();
     const f = [dot(d, e1), dot(d, e2)];
     const n = Math.hypot(f[0], f[1]) || 1;
     this.fwd = [f[0] / n, f[1] / n];
-    this.guessConfident = !flat;
+    this.guessConfident = facesUs;
     this.calibrated = false;
     this.quality = 0;
     this.history = [];
@@ -356,6 +365,8 @@ export class Fusion {
       source: this.source,
       calibration,
       quality: this.axes.quality,
+      mount: phoneLive ? this.axes.mount : null,
+      tilt: phoneLive ? this.axes.tilt : null,
       gpsFresh: this._gpsFresh(t),
       phoneLive,
     };

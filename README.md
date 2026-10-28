@@ -6,7 +6,7 @@ GT3-style boxer through the car's speakers. It reacts to how you actually
 drive: the car's GPS gives the speed, and your phone's accelerometer gives
 an instant throttle.
 
-![Car screen while accelerating: 3rd gear, 125 km/h, 7,000 rpm](docs/screenshot-driving.png)
+![Car screen while accelerating, phone in the Tesla dock: 3rd gear, 139 km/h, 7,800 rpm](docs/screenshot-driving.png)
 
 | Pairing (first screen) | Phone, connected |
 | --- | --- |
@@ -51,8 +51,9 @@ flowchart LR
       the link.
    2. Tap **Connect**. On iPhone, tap **Allow** when it asks for motion
       access. Android starts by itself.
-   3. Put the phone in a mount, or anywhere it can't slide, in any
-      orientation, and keep the page open with the screen on.
+   3. Lay the phone in the **Tesla phone dock** (the angled wireless-charging
+      tray, about 45°), any way round, and keep the page open with the screen
+      on. It charges while it streams. A dash or vent holder works too.
 5. Drive. The phone calibrates itself in the first few seconds of driving
    (see *How the phone is understood*).
 
@@ -157,15 +158,20 @@ ScriptProcessor fallback runs the same code on browsers without worklets
   fundamental is rpm ÷ 20 Hz (450 Hz at 9,000 rpm).
 - **Exhaust pulses.** Each firing is a pressure pulse: a sharp blowdown peak,
   then a scavenging dip. Its strength follows the load, and its sharp
-  "crack" grows with throttle. The blowdown lasts about 6.5 ms whatever the
+  "crack" grows with throttle. The blowdown lasts about 10 ms whatever the
   revs, so idle sounds like separate, lumpy beats and high rpm merges them
   into a wail. Every cylinder is a little different and every event jitters
   slightly, so no two cycles are identical.
-- **Pipes.** Each bank feeds its own header, modelled as a resonant delay
-  line. The two have different lengths, which brings out the boxer's
-  half-orders. Short tailpipe combs add the metallic edge.
-- **Body resonances.** A fixed bank of resonances (body boom, muffler, rasp)
-  doesn't move with rpm. Different harmonics light up as the revs climb,
+- **Deep, GT3-style voicing.** The right bank's pulses reach the tailpipes a
+  little later and weaker than the left bank's, as with unequal exhaust
+  paths. That makes the boxer's 1.5 engine order carry the sound: a note an
+  octave below the firing frequency, about 100 Hz at 4,000 rpm and 210 Hz at
+  8,500 rpm. It survives mono playback, so the car's subwoofer reproduces it.
+- **Pipes.** Each bank feeds its own long header, modelled as a resonant
+  delay line with low resonances. Short tailpipe combs add the metallic
+  edge.
+- **Body resonances.** A fixed bank of resonances (body boom around 80 Hz,
+  muffler, rasp) doesn't move with rpm. Different harmonics light up as the revs climb,
   as in a real car.
 - **Intake howl.** Intake strokes ring through plenum and runner
   resonances, with air rush that grows with throttle (individual throttle
@@ -178,8 +184,13 @@ ScriptProcessor fallback runs the same code on browsers without worklets
     after you lift and at high revs, plus a "brap" on upshift cuts.
   - The rev limiter stutter.
 - **Output.** Tone opens with load and revs, saturation adds grit at full
-  throttle, and a loudness curve keeps idle quiet. A limiter protects the
-  speakers.
+  throttle, and a bass shelf adds weight. A loudness curve keeps idle
+  quieter than full throttle, and a limiter protects the speakers.
+
+Every character setting lives in one `VOICE` table at the top of
+`js/engine-worklet.js`: bank lag and strength, pulse length, pipe lengths,
+body resonances, intake, sub-bass and tone. Change it there to make the
+engine deeper or brighter.
 
 The synth uses about 2 % of one desktop CPU core.
 
@@ -206,9 +217,15 @@ The synth uses about 2 % of one desktop CPU core.
   learned automatically by matching the phone's horizontal acceleration
   against the speed changes the GPS reports, using a small least-squares fit.
   It converges during the first few seconds of driving, in any orientation.
-- Until then, an upright phone is assumed to be in a holder facing the
-  driver, which is almost always true. A phone lying flat isn't trusted until
-  it has calibrated, so it can never throttle backwards.
+- **The Tesla phone dock needs no calibration to start.** The console tray
+  rises towards the dashboard, so a phone lying in it (about 45°) always has
+  its screen facing up and back, whether its top points forward or back, and
+  even in landscape. Forward is then "behind the screen", flattened to
+  horizontal, so the throttle is right from the first second. The car screen
+  shows the detected position and angle, for example *Tesla dock, 45°*. The
+  same logic covers upright dash and vent holders.
+- A phone lying flat gives no such hint, so it isn't trusted until it has
+  calibrated, and it can never throttle backwards.
 - Picking the phone up is detected (it spins), and it recalibrates once it is
   put down again. iOS reports acceleration with the opposite sign to Android;
   the phone page checks the sign against its orientation and corrects it.
