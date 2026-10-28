@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a1222">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Send your phone's motion to Untesled on your car's screen.">
+  <title>Untesled phone</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/phone.js"></script>
+</head>
+<body class="phone-page">
+  <main class="phone">
+    <header class="phone-head">
+      <div class="brand">
+        <span class="wordmark">untesled</span>
+        <span class="livery" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+    </header>
+
+    <!-- No code yet: type the one shown on the car -->
+    <section class="phone-card" id="cardCode" hidden>
+      <h1>Connect to your car</h1>
+      <p>Enter the code shown on your car's screen, under the QR code.</p>
+      <form class="code-form" id="codeForm" novalidate>
+        <label for="codeInput">Pairing code</label>
+        <input class="code-input" id="codeInput" name="code" type="text" inputmode="text"
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+               maxlength="9" placeholder="K7M P9X">
+        <div class="code-error" id="codeError" role="alert"></div>
+        <button class="big-btn" type="submit">Continue</button>
+      </form>
+    </section>
+
+    <!-- Connection -->
+    <section class="phone-card" id="cardMain" hidden>
+      <div class="phone-state" id="phoneState" data-tone="busy" role="status" aria-live="polite">
+        <i aria-hidden="true"></i><span id="stateText">Connecting…</span>
+      </div>
+      <p id="stateDetail"></p>
+      <button class="big-btn" id="connectBtn" type="button">Connect</button>
+
+      <div class="live" id="live" hidden>
+        <div>
+          <div class="live-gear" id="liveGear" aria-label="Gear">–</div>
+          <div class="live-meta">
+            <span><b id="liveRpm">0</b> rpm</span>
+            <span><b id="liveSpeed">0</b> <span id="liveUnit">km/h</span></span>
+          </div>
+        </div>
+        <div class="bubble" aria-hidden="true"><i id="bubbleDot"></i></div>
+        <div class="live-bar" aria-hidden="true"><i id="liveBar"></i></div>
+      </div>
+
+      <dl class="phone-stats" id="stats" hidden>
+        <div><dt>Motion</dt><dd id="statRate">–</dd></div>
+        <div><dt>Delay</dt><dd id="statRtt">–</dd></div>
+        <div><dt>Relay</dt><dd id="statRelay">–</dd></div>
+      </dl>
+    </section>
+
+    <section class="phone-card" id="cardTips">
+      <h2>Before you drive</h2>
+      <ul class="tips">
+        <li>Put the phone in a mount or anywhere it can't slide. Any orientation works.</li>
+        <li>Keep this page open with the screen on. If the phone sleeps, the car carries on with GPS.</li>
+        <li>Calibration is automatic: just drive off normally.</li>
+      </ul>
+      <button class="link-btn" id="changeCodeBtn" type="button">Use a different code</button>
+    </section>
+
+    <p class="phone-foot">The sound plays from the car. This phone only sends motion: no audio, no location.</p>
+  </main>
+</body>
+</html>

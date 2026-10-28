@@ -44,5 +44,13 @@ export function resolveBrokers(search = typeof location !== 'undefined' ? locati
     .split(',')
     .map((url) => url.trim())
     .filter((url) => /^wss?:\/\//i.test(url))
-    .map((url, i) => ({ id: `custom${i + 1}`, url }));
+    .map((url, i) => {
+      let id = `custom${i + 1}`;
+      try {
+        id = new URL(url).host;
+      } catch {
+        /* keep the generic name */
+      }
+      return { id, url };
+    });
 }

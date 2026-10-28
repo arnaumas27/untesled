@@ -162,8 +162,8 @@ export class PhoneAxes {
    * change by `aGps` (m/s²) between t0 and t1; the phone's horizontal
    * acceleration over the same window must line up with it.
    */
-  learn(t0, t1, aGps) {
-    const H = this.meanBetween(t0 - GPS_LAG_MS, t1 - GPS_LAG_MS);
+  learn(t0, t1, aGps, lag = GPS_LAG_MS) {
+    const H = this.meanBetween(t0 - lag, t1 - lag);
     if (!H) return;
     const f = this.fit;
     const lam = 0.97; // forget old intervals slowly (≈30 s memory)
@@ -211,7 +211,7 @@ export class Fusion {
   /** Simulator mode: speed and acceleration come straight from the sim. */
   setSim(on) {
     this.sim = on ? { v: 0, a: 0 } : null;
-    if (!on) this.v = this.gps.v ?? 0;
+    if (!on) this.v = this.gps.v != null ? this.gps.v : 0;
   }
 
   addSim(v, a) {
@@ -221,10 +221,14 @@ export class Fusion {
     }
   }
 
-  /** @param {{t:number, speed:number|null}} fix  t = performance.now() ms */
-  addGps({ t, speed }) {
+  /**
+   * @param {{t:number, speed:number|null, lagMs?:number}} fix
+   *   t = performance.now() ms; lagMs = how old the speed already is.
+   */
+  addGps({ t, speed, lagMs }) {
     if (speed == null || !Number.isFinite(speed)) return;
     speed = clamp(speed, 0, 120);
+    const lag = Number.isFinite(lagMs) ? clamp(lagMs, 0, 3000) : GPS_LAG_MS;
     const g = this.gps;
 
     if (g.v != null) {
@@ -232,8 +236,8 @@ export class Fusion {
       if (dt > 0.25 && dt < 3) {
         const aRaw = (speed - g.v) / dt;
         g.a = g.fixes > 1 ? g.a * 0.4 + aRaw * 0.6 : aRaw;
-        this.axes.learn(g.t, t, aRaw);
-        this._learnBias(g.t, t, aRaw);
+        this.axes.learn(g.t, t, aRaw, lag);
+        this._learnBias(g.t, t, aRaw, lag);
       }
     }
 
@@ -242,7 +246,7 @@ export class Fusion {
     if (g.v == null) {
       this.v = speed;
     } else {
-      const err = speed - this._speedAt(t - GPS_LAG_MS);
+      const err = speed - this._speedAt(t - lag);
       const k = this._phoneUsable(t) ? 0.35 : 0.65;
       this.v = Math.max(0, this.v + k * err);
     }
@@ -262,6 +266,17 @@ export class Fusion {
     }
   }
 
+  /**
+   * Browsers often stop reporting while the position doesn't change, so
+   * silence after a standstill fix still means "standing still" — unless the
+   * phone says we have since driven off (e.g. leaving a tunnel queue).
+   */
+  _gpsFresh(t) {
+    const age = t - this.gps.t;
+    if (age < GPS_STALE_MS) return true;
+    return this.gps.v != null && this.gps.v < 0.5 && age < 600000 && this.v < 2;
+  }
+
   _phoneLive(t) {
     return t - this.phone.t < PHONE_STALE_MS && this.phone.stable;
   }
@@ -270,9 +285,9 @@ export class Fusion {
     return this._phoneLive(t) && (this.axes.calibrated || this.axes.guessConfident);
   }
 
-  _learnBias(t0, t1, aGps) {
+  _learnBias(t0, t1, aGps, lag) {
     if (!this.axes.calibrated) return;
-    const H = this.axes.meanBetween(t0 - GPS_LAG_MS, t1 - GPS_LAG_MS);
+    const H = this.axes.meanBetween(t0 - lag, t1 - lag);
     if (!H) return;
     const [f1, f2] = this.axes.fwd;
     const err = f1 * H[0] + f2 * H[1] - aGps;
@@ -297,7 +312,7 @@ export class Fusion {
       return this.state(t);
     }
 
-    const gpsFresh = t - this.gps.t < GPS_STALE_MS;
+    const gpsFresh = this._gpsFresh(t);
     const phoneLive = this._phoneLive(t);
     const phoneUsable = this._phoneUsable(t);
 
@@ -315,8 +330,8 @@ export class Fusion {
     this.a = approach(this.a, aTarget, dt, phoneUsable ? 0.05 : 0.25);
 
     if (gpsFresh || phoneUsable) this.v = Math.max(0, this.v + this.a * dt);
-    // Without GPS we cannot observe speed, so let the estimate relax.
-    if (!gpsFresh) this.v *= Math.exp(-dt / (phoneUsable ? 25 : 6));
+    // Without GPS (a tunnel) we cannot observe speed: hold it, slowly relaxing.
+    if (!gpsFresh) this.v *= Math.exp(-dt / (phoneUsable ? 25 : 20));
     // Standing still: GPS reads ~0 and the phone feels no push.
     if (gpsFresh && this.gps.v < 0.4 && (!phoneUsable || Math.abs(aTarget) < 0.3)) {
       this.v = approach(this.v, 0, dt, 0.3);
@@ -325,7 +340,7 @@ export class Fusion {
     this.lat = phoneLive ? approach(this.lat, this.phone.lat, dt, 0.08) : approach(this.lat, 0, dt, 0.3);
 
     this.vHist.push({ t, v: this.v });
-    while (this.vHist.length && t - this.vHist[0].t > 3000) this.vHist.shift();
+    while (this.vHist.length && t - this.vHist[0].t > 4000) this.vHist.shift();
     return this.state(t);
   }
 
@@ -341,7 +356,7 @@ export class Fusion {
       source: this.source,
       calibration,
       quality: this.axes.quality,
-      gpsFresh: t - this.gps.t < GPS_STALE_MS,
+      gpsFresh: this._gpsFresh(t),
       phoneLive,
     };
   }

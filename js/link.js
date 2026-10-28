@@ -295,7 +295,7 @@ export class CarLink {
         break;
 
       case 'bye':
-        if (this.phone && this.phone.id === msg.id) this.phone.lastSeen = this.phone.lastMotion = -Infinity;
+        if (this.phone && this.phone.id === msg.id) this.phone = null; // left on purpose
         break;
 
       default:

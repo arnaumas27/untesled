@@ -137,3 +137,35 @@ test('simulator mode passes values straight through', () => {
   assert.equal(s.accel, 3);
   assert.equal(s.source, 'sim');
 });
+
+test('position-derived GPS speed (about 1.3 s old) does not drag the estimate', () => {
+  // Browsers without Doppler speed: speed = distance over the last 2 s, so it
+  // describes a moment ~1 s ago, reported another 0.3 s late.
+  const run = (lagMs) => {
+    const f = new Fusion();
+    const toPhone = mount('upright', 0);
+    const hist = [];
+    let v = 0;
+    const errs = [];
+    for (let ms = 0; ms < 60000; ms += 10) {
+      const cyc = (ms / 1000) % 20;
+      let a = cyc < 6 ? 2.5 : cyc < 10 ? 0 : cyc < 15 ? -3 : 0;
+      if (a < 0 && v <= 0) a = 0;
+      v = Math.max(0, v + (a * 10) / 1000);
+      hist.push({ ms, v });
+      if (ms % 40 === 0) f.addPhone({ t: ms, a: toPhone([a, 0, 0]), g: toPhone([0, 0, 9.81]) });
+      if (ms % 1000 === 0 && ms >= 2300) {
+        const at = (x) => hist.find((h) => h.ms >= x).v;
+        const avg = (at(ms - 2300) + at(ms - 1300) + at(ms - 300)) / 3; // ~ speed 1.3 s ago
+        f.addGps({ t: ms, speed: avg, lagMs });
+      }
+      const s = f.update(ms);
+      if (ms > 30000) errs.push(s.speed - v);
+    }
+    return Math.sqrt(errs.reduce((s, e) => s + e * e, 0) / errs.length);
+  };
+  const withLag = run(1300);
+  const naive = run(300);
+  assert.ok(withLag < 0.6, `speed error with the fix's lag: ${withLag.toFixed(2)} m/s`);
+  assert.ok(withLag < naive, `better than assuming 0.3 s (${naive.toFixed(2)} m/s)`);
+});

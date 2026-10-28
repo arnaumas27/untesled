@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a1222">
+  <meta name="description" content="Flat-six engine sound for your Tesla, driven by GPS and your phone's accelerometer.">
+  <title>Untesled</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body class="car-page">
+  <div class="app" id="app" data-engine="off" data-panel="pair" data-sim="off">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="wordmark">untesled</span>
+        <span class="livery" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+      <ul class="chips" aria-label="Connections">
+        <li class="chip" id="chipGps" data-state="idle"><i aria-hidden="true"></i><b>GPS</b><span>Off</span></li>
+        <li class="chip" id="chipPhone" data-state="idle"><i aria-hidden="true"></i><b>Phone</b><span>Not paired</span></li>
+        <li class="chip" id="chipInput" data-state="idle"><i aria-hidden="true"></i><b>Throttle</b><span>None</span></li>
+      </ul>
+      <button class="icon-btn" id="settingsBtn" type="button" aria-label="Settings" aria-controls="settings" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 13.5c.04-.5.04-1 0-1.5l2-1.6-2-3.4-2.4.9c-.4-.3-.8-.6-1.3-.8L15.3 4h-4l-.4 2.6c-.5.2-.9.5-1.3.8l-2.4-.9-2 3.4 2 1.6c-.04.5-.04 1 0 1.5l-2 1.6 2 3.4 2.4-.9c.4.3.8.6 1.3.8l.4 2.6h4l.4-2.6c.5-.2.9-.5 1.3-.8l2.4.9 2-3.4-2-1.6Z"/></svg>
+      </button>
+    </header>
+
+    <main class="cockpit">
+
+      <!-- Left: the car, the start button, volume -->
+      <section class="zone zone-car" aria-label="Engine">
+        <figure class="car-art" aria-hidden="true">
+          <svg viewBox="-110 18 1125 330" id="carSvg">
+            <defs>
+              <linearGradient id="gBody" x1="0" y1="45" x2="0" y2="305" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#f6f8fc"/>
+                <stop offset="0.42" stop-color="#d3dae4"/>
+                <stop offset="0.7" stop-color="#97a3b5"/>
+                <stop offset="1" stop-color="#4a5468"/>
+              </linearGradient>
+              <linearGradient id="gGlass" x1="0" y1="48" x2="0" y2="148" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#22324f"/>
+                <stop offset="0.55" stop-color="#0b1322"/>
+                <stop offset="1" stop-color="#03060c"/>
+              </linearGradient>
+              <linearGradient id="gRim" x1="0" y1="-60" x2="0" y2="60" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#e4e9f1"/>
+                <stop offset="1" stop-color="#5d6a7f"/>
+              </linearGradient>
+              <radialGradient id="gShadow" cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0" stop-color="#000" stop-opacity="0.8"/>
+                <stop offset="1" stop-color="#000" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="gHeadGlow" cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0" stop-color="#e8f6ff" stop-opacity="0.95"/>
+                <stop offset="0.35" stop-color="#7fd3ff" stop-opacity="0.35"/>
+                <stop offset="1" stop-color="#7fd3ff" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="gTailGlow" cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0" stop-color="#ff5a4a" stop-opacity="0.9"/>
+                <stop offset="1" stop-color="#e42a1d" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="gFlame" x1="1" y1="0" x2="0" y2="0">
+                <stop offset="0" stop-color="#e9f7ff"/>
+                <stop offset="0.18" stop-color="#7cc8ff"/>
+                <stop offset="0.4" stop-color="#ffb020"/>
+                <stop offset="0.75" stop-color="#ff4a1c" stop-opacity="0.75"/>
+                <stop offset="1" stop-color="#ff4a1c" stop-opacity="0"/>
+              </linearGradient>
+              <clipPath id="clipBody"><path d="M1000 262 C1003 248 999 236 988 226 C968 206 940 178 906 165 C884 157 860 151 830 148 C790 144 730 144 662 146 C632 132 578 84 530 62 C505 52 470 47 440 49 C380 53 320 71 262 97 C212 119 162 131 104 137 C72 140 50 141 38 146 C22 158 10 182 6 214 C4 240 8 262 18 282 C24 292 40 298 60 300 L168.5 300.0 A90 90 0 1 1 319.5 300.0 L707.7 300.0 A86 86 0 1 1 854.3 300.0 L960 300 C985 296 998 282 1000 262 Z"/></clipPath>
+            </defs>
+
+            <ellipse cx="505" cy="333" rx="530" ry="17" fill="url(#gShadow)"/>
+            <line class="floor" x1="-110" y1="333" x2="1015" y2="333"/>
+
+            <!-- exhaust flame, behind the bumper -->
+            <g id="flame" class="flame">
+              <path d="M-4 267 C-26 253 -58 253 -104 265 C-58 277 -26 281 -4 273 Z" fill="url(#gFlame)"/>
+              <path d="M-4 269 C-16 263 -34 263 -54 268 C-34 273 -16 274 -4 272 Z" fill="#fff6dc" opacity="0.85"/>
+            </g>
+
+            <g id="carBody" class="car-body">
+              <!-- GT3 swan-neck wing: struts, then the carbon endplate -->
+              <path class="strut" d="M190 120 C198 92 190 56 156 30"/>
+              <path class="strut strut-front" d="M170 126 C178 96 170 60 134 32"/>
+              <path class="carbon" d="M26 38 C70 33 140 33 180 40 L182 63 C140 67 70 67 30 63 Z"/>
+              <path class="wing-top" d="M30 45 C74 40 140 40 176 46"/>
+
+              <path class="paint" fill="url(#gBody)" d="M1000 262 C1003 248 999 236 988 226 C968 206 940 178 906 165 C884 157 860 151 830 148 C790 144 730 144 662 146 C632 132 578 84 530 62 C505 52 470 47 440 49 C380 53 320 71 262 97 C212 119 162 131 104 137 C72 140 50 141 38 146 C22 158 10 182 6 214 C4 240 8 262 18 282 C24 292 40 298 60 300 L168.5 300.0 A90 90 0 1 1 319.5 300.0 L707.7 300.0 A86 86 0 1 1 854.3 300.0 L960 300 C985 296 998 282 1000 262 Z"/>
+
+              <!-- livery stripes along the flank, clipped to the body -->
+              <g clip-path="url(#clipBody)">
+                <path class="stripe s-navy" d="M965 204 C860 206 760 210 650 212 C520 214 420 212 350 200 C290 190 230 176 160 170 C110 166 60 170 10 182"/>
+                <path class="stripe s-sky" d="M965 213 C860 215 760 219 650 221 C520 223 420 221 350 209 C290 199 230 185 160 179 C110 175 60 179 10 191"/>
+                <path class="stripe s-red" d="M965 222 C860 224 760 228 650 230 C520 232 420 230 350 218 C290 208 230 194 160 188 C110 184 60 188 10 200"/>
+              </g>
+
+              <!-- Tesla-style glasshouse: side glass and glass roof as one dark sweep -->
+              <path fill="url(#gGlass)" d="M652 146 C600 140 470 136 380 131 C340 128 312 122 296 108 C338 84 390 60 440 54 C474 50 506 53 528 63 C570 84 618 120 652 146 Z"/>
+              <path class="glass-glint" d="M520 66 C490 56 460 55 432 58 C400 62 366 76 334 96"/>
+              <path class="pillar" d="M424 133 C420 108 420 80 424 55"/>
+
+              <!-- body details -->
+              <path class="crease" d="M900 180 C760 179 600 181 470 179 C380 177 320 160 252 149 C190 140 120 144 52 156"/>
+              <path class="seam" d="M650 150 C655 200 654 256 642 298"/>
+              <path class="seam" d="M432 140 C426 196 428 254 438 298"/>
+              <path class="seam" d="M898 166 C906 200 900 240 878 278"/>
+              <path class="seam" d="M138 136 C150 160 158 196 158 226"/>
+              <rect class="handle" x="470" y="168" width="38" height="6" rx="3"/>
+              <path class="mirror" d="M616 146 C624 128 650 122 666 132 C666 142 646 149 616 149 Z"/>
+              <rect class="port" x="96" y="160" width="28" height="17" rx="4"/>
+              <path class="lip" d="M1000 268 C994 284 978 294 956 298"/>
+
+              <!-- lights -->
+              <path id="headlight" class="headlight" d="M912 170 C932 174 952 186 968 204 C954 205 930 193 908 178 Z"/>
+              <ellipse class="head-glow" cx="948" cy="190" rx="72" ry="30" fill="url(#gHeadGlow)"/>
+              <path id="taillight" class="taillight" d="M42 148 C28 152 16 162 9 176 L16 179 C22 166 32 158 46 154 Z"/>
+              <ellipse class="tail-glow" cx="16" cy="164" rx="50" ry="26" fill="url(#gTailGlow)"/>
+              <rect class="tip" x="-8" y="262" width="26" height="11" rx="5.5"/>
+
+              <!-- wheels: tyre, disc + yellow ceramic-brake caliper, rotating aero rim -->
+              <g class="wheel">
+                <circle cx="244" cy="251" r="79" class="tyre"/>
+                <circle cx="244" cy="251" r="68" class="sidewall"/>
+                <circle cx="244" cy="251" r="55" class="disc"/>
+                <path class="caliper" d="M192.7 236.3 A53.35 53.35 0 0 1 222.3 202.3 L230.1 219.8 A34.1 34.1 0 0 0 211.2 241.6 Z"/>
+                <g id="wheelRear" class="rim" data-cx="244" data-cy="251">
+                  <circle cx="244" cy="251" r="60" fill="none" stroke="url(#gRim)" stroke-width="5"/>
+                  <path class="spokes" transform="translate(244 251) scale(1.429)" d="M-4 -8 C-6 -24 -2 -36 8 -41 L14 -39 C6 -32 4 -20 6 -8 Z M7.4 -1.4 C22 -10 34 -12 41 -4 L41 3 C33 -3 21 -1 10 5 Z M4.4 7.6 C18 18 23 30 17 39 L11 41 C14 31 9 20 -1 11 Z M-7 6 C-14 21 -24 30 -35 28 L-38 22 C-28 22 -20 15 -14 4 Z M-8.6 -3.2 C-25 -4 -36 -10 -39 -21 L-35 -26 C-31 -17 -22 -12 -8 -10 Z"/>
+                  <circle cx="244" cy="251" r="12" class="hub"/>
+                </g>
+              </g>
+              <g class="wheel">
+                <circle cx="781" cy="255" r="75" class="tyre"/>
+                <circle cx="781" cy="255" r="64" class="sidewall"/>
+                <circle cx="781" cy="255" r="52" class="disc"/>
+                <path class="caliper" d="M732.5 241.1 A50.44 50.44 0 0 1 760.5 208.9 L767.9 225.5 A32.24 32.24 0 0 0 750.0 246.1 Z"/>
+                <g id="wheelFront" class="rim" data-cx="781" data-cy="255">
+                  <circle cx="781" cy="255" r="57" fill="none" stroke="url(#gRim)" stroke-width="5"/>
+                  <path class="spokes" transform="translate(781 255) scale(1.357)" d="M-4 -8 C-6 -24 -2 -36 8 -41 L14 -39 C6 -32 4 -20 6 -8 Z M7.4 -1.4 C22 -10 34 -12 41 -4 L41 3 C33 -3 21 -1 10 5 Z M4.4 7.6 C18 18 23 30 17 39 L11 41 C14 31 9 20 -1 11 Z M-7 6 C-14 21 -24 30 -35 28 L-38 22 C-28 22 -20 15 -14 4 Z M-8.6 -3.2 C-25 -4 -36 -10 -39 -21 L-35 -26 C-31 -17 -22 -12 -8 -10 Z"/>
+                  <circle cx="781" cy="255" r="11" class="hub"/>
+                </g>
+              </g>
+            </g>
+          </svg>
+          <figcaption class="engine-spec">
+            <span>4.0 flat-six</span>
+            <span id="modeLabel">Sport</span>
+          </figcaption>
+        </figure>
+
+        <div class="controls">
+          <button class="start-btn" id="startBtn" type="button" aria-pressed="false">
+            <span class="start-face">
+              <small>Engine</small>
+              <strong id="startLabel">Start</strong>
+              <small id="startSub">Tap to start</small>
+            </span>
+          </button>
+          <div class="side-controls">
+            <button class="rev-btn" id="revBtn" type="button" disabled>Hold to rev</button>
+            <label class="volume">
+              <span class="volume-label">Volume</span>
+              <input type="range" id="volume" min="0" max="100" value="70" step="1" aria-label="Volume">
+              <output id="volumeOut" for="volume">70</output>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Centre: tachometer -->
+      <section class="zone zone-tach" aria-label="Instruments">
+        <div class="tach" id="tach">
+          <svg viewBox="0 0 440 440" id="tachSvg" aria-hidden="true">
+            <g id="tachLeds"></g>
+            <g id="tachTicks"></g>
+            <path id="tachTrack" class="tach-track"/>
+            <path id="tachRed" class="tach-red"/>
+            <path id="tachFill" class="tach-fill"/>
+            <g id="tachPointer" class="tach-pointer"><line x1="148" y1="0" x2="190" y2="0"/></g>
+            <circle cx="220" cy="220" r="110" class="tach-inner"/>
+          </svg>
+          <div class="tach-readout">
+            <div class="gear" id="gear" aria-label="Gear">–</div>
+            <div class="speed"><span id="speed" aria-label="Speed">0</span><span class="unit" id="speedUnit">km/h</span></div>
+            <div class="rpm"><span id="rpm">0</span> rpm</div>
+            <div class="power" aria-hidden="true"><i class="power-regen" id="powerRegen"></i><i class="power-load" id="powerLoad"></i></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: pairing / phone telemetry / simulator -->
+      <section class="zone zone-side" aria-label="Phone and simulator">
+
+        <div class="panel panel-pair" id="panelPair">
+          <h2>Pair your phone</h2>
+          <p class="panel-lead">Your phone's motion sensor makes the throttle react instantly.</p>
+          <div class="qr-wrap">
+            <div class="qr" id="qr" role="img" aria-label="Pairing QR code"></div>
+          </div>
+          <ol class="steps">
+            <li>Point your phone's camera at the code.</li>
+            <li>Tap <b>Connect</b> and allow motion access.</li>
+            <li>Mount the phone and keep its screen on.</li>
+          </ol>
+          <p class="manual">No camera? Open <b id="manualUrl">this site</b> on your phone and enter <span class="code" id="pairCode">––– –––</span></p>
+          <p class="relay" id="relayLine">Connecting to the pairing relay…</p>
+          <button class="link-btn" id="gpsOnlyBtn" type="button">Drive without a phone</button>
+        </div>
+
+        <div class="panel panel-phone" id="panelPhone" hidden>
+          <h2>Phone <span class="device" id="phoneDevice"></span></h2>
+          <div class="gmeter" aria-hidden="true">
+            <svg viewBox="-60 -60 120 120">
+              <circle r="56" class="g-ring"/><circle r="28" class="g-ring"/>
+              <line x1="-56" y1="0" x2="56" y2="0" class="g-axis"/><line x1="0" y1="-56" x2="0" y2="56" class="g-axis"/>
+              <circle r="7" id="gDot" class="g-dot"/>
+            </svg>
+            <span class="g-label g-top">Accelerate</span>
+            <span class="g-label g-bottom">Brake</span>
+          </div>
+          <dl class="facts">
+            <div><dt>Calibration</dt><dd id="factCal">–</dd></div>
+            <div><dt>Motion data</dt><dd id="factRate">–</dd></div>
+            <div><dt>Round trip</dt><dd id="factRtt">–</dd></div>
+            <div><dt>Relay</dt><dd id="factRelay">–</dd></div>
+          </dl>
+          <button class="link-btn" id="showQrBtn" type="button">Pair a different phone</button>
+        </div>
+
+        <div class="panel panel-gps" id="panelGps" hidden>
+          <h2>Driving on GPS</h2>
+          <p class="panel-lead">The engine follows the car's GPS. It reacts about a second late; a paired phone makes it instant.</p>
+          <button class="link-btn" id="pairAgainBtn" type="button">Pair a phone</button>
+        </div>
+
+        <div class="panel panel-sim" id="panelSim" hidden>
+          <h2>Simulator</h2>
+          <p class="panel-lead">Press and hold a pedal. The lower you press, the harder. Keys: <kbd>↑</kbd> throttle, <kbd>↓</kbd> brake.</p>
+          <div class="pedals">
+            <div class="pedal pedal-brake" id="pedalBrake" role="button" tabindex="0" aria-label="Brake pedal"><span>Brake</span></div>
+            <div class="pedal pedal-throttle" id="pedalThrottle" role="button" tabindex="0" aria-label="Throttle pedal"><span>Throttle</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="statusbar">
+      <p id="statusMsg" role="status" aria-live="polite">Loading…</p>
+    </footer>
+
+    <div class="scrim" id="scrim" hidden></div>
+    <aside class="settings" id="settings" aria-label="Settings" hidden>
+      <div class="settings-head">
+        <h2>Settings</h2>
+        <button class="icon-btn" id="settingsClose" type="button" aria-label="Close settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <fieldset class="setting">
+        <legend>Drive mode</legend>
+        <div class="segmented" data-setting="mode">
+          <button type="button" data-value="comfort">Comfort</button>
+          <button type="button" data-value="sport">Sport</button>
+          <button type="button" data-value="track">Track</button>
+        </div>
+        <p class="hint" id="modeHint"></p>
+      </fieldset>
+
+      <fieldset class="setting">
+        <legend>Pops and bangs</legend>
+        <div class="segmented" data-setting="pops">
+          <button type="button" data-value="off">Off</button>
+          <button type="button" data-value="mild">Mild</button>
+          <button type="button" data-value="wild">Wild</button>
+        </div>
+      </fieldset>
+
+      <fieldset class="setting">
+        <legend>Speed</legend>
+        <div class="segmented" data-setting="units">
+          <button type="button" data-value="kmh">km/h</button>
+          <button type="button" data-value="mph">mph</button>
+        </div>
+      </fieldset>
+
+      <div class="setting setting-row">
+        <div>
+          <label for="simToggle" class="setting-title">Simulator</label>
+          <p class="hint">Drive with on-screen pedals. No car or phone needed.</p>
+        </div>
+        <input type="checkbox" class="switch" id="simToggle" role="switch">
+      </div>
+
+      <div class="setting setting-row">
+        <div>
+          <span class="setting-title">Pairing code</span>
+          <p class="hint"><span class="code" id="settingsCode">––– –––</span></p>
+        </div>
+        <button class="secondary-btn" id="newCodeBtn" type="button">New code</button>
+      </div>
+
+      <p class="about">Untesled 1.0. The sound is synthesized live in this browser. No audio files, nothing recorded. Motion data passes through a public relay and contains no location.</p>
+    </aside>
+  </div>
+</body>
+</html>

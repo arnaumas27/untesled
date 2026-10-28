@@ -79,10 +79,10 @@ export class MqttClient {
   constructor(url, opts = {}) {
     this.url = url;
     this.clientId = opts.clientId || randomClientId();
-    this.keepalive = opts.keepalive ?? 20;
+    this.keepalive = opts.keepalive != null ? opts.keepalive : 20;
     this.username = opts.username;
     this.password = opts.password;
-    this.connectTimeout = opts.connectTimeout ?? 8000;
+    this.connectTimeout = opts.connectTimeout != null ? opts.connectTimeout : 8000;
 
     /** @type {(topic: string, payload: Uint8Array) => void} */
     this.onmessage = null;

@@ -1,0 +1,27 @@
+# Untesled on Hostinger (Apache / LiteSpeed)
+
+# The phone's motion sensors and the car's GPS only work on https://,
+# so send every visitor there. (Install the free SSL certificate first.)
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Correct types for the ES modules, the audio worklet and the fonts.
+<IfModule mod_mime.c>
+  AddType text/javascript .js
+  AddType font/woff2 .woff2
+  AddType image/svg+xml .svg
+</IfModule>
+
+# Revalidate pages and code on every load so a new deploy shows up at once;
+# fonts and icons can be cached for a month.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "\.(woff2|svg)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "no-referrer"
+</IfModule>
