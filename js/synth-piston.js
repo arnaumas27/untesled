@@ -277,7 +277,7 @@ export class PistonSynth {
     this.drive = 1;
     this.loudness = 0;
 
-    /** Called with {type:'pop', amp} so the UI can flash exhaust flames. */
+    /** Called with {type:'pop', amp} so the UI can react to each pop. */
     this.onEvent = null;
   }
 

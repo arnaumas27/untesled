@@ -16,7 +16,7 @@ and your phone's accelerometer gives an instant throttle.
 - **Six sounds, no audio files.** Every sound is synthesized live in the
   browser: firing pulses, exhaust pipes, intake howl, shift cuts, blips, pops
   and bangs, a turbofan spooling up, hooves on the road. Each sound has its
-  own neon artwork and its own dial.
+  own neon sign and its own dial.
 - **Scan and go.** The car shows a QR code. Scan it with your phone camera,
   tap Connect, done. It works on any network, with no app and no account.
 - **Works without the phone, too.** On GPS alone the engine follows your
@@ -96,7 +96,7 @@ published with SSL.
 
 ### Settings
 
-- **Sound**: one of the six sounds below. The artwork, the dial and the
+- **Sound**: one of the six sounds below. The neon sign, the dial and the
   readouts change with it. Switching while the engine runs restarts it as
   the new one.
 - **Drive mode**:
@@ -115,7 +115,14 @@ published with SSL.
 
 ## The sounds
 
-![The six sounds, each with its own neon artwork](docs/screenshot-sounds.png)
+![The six sounds, each with its own neon sign](docs/screenshot-sounds.png)
+
+Each sound shows a neon sign: a line icon and the vehicle's name in neon-tube
+lettering. Like a real sign, its tubes stay visible but dark while the engine
+is off; it strikes with a stutter when you start, glows a little brighter
+with the throttle, flickers with every exhaust pop and fades out when you
+stop. The freighter's sign streaks off into hyperspace, and the horse trots
+with its stride.
 
 | Sound | What you hear | The dial | Hold the button (standing still) |
 | --- | --- | --- | --- |
@@ -325,15 +332,15 @@ hysteresis), the whip, and its moods while standing.
 
 | File | What it does |
 | --- | --- |
-| `index.html` | Car screen: dial, start button, artwork, pairing and simulator. |
+| `index.html` | Car screen: dial, start button, neon sign, pairing and simulator. |
 | `phone.html` | Phone screen: pairing and motion streaming. |
 | `style.css` | Styles for both pages. |
 | `js/app.js` | Car page: wires sensors, fusion, vehicle, audio, link and UI together. |
-| `js/ui.js` | Car screen rendering (dial, readouts, animated artwork, G-meter with saved maxima, panels, settings). |
+| `js/ui.js` | Car screen rendering (dial, readouts, the animated neon sign, G-meter with saved maxima, panels, settings). |
 | `js/sounds.js` | The list of sounds: names, dials, labels, which model and synth. |
 | `js/vehicle.js` | Virtual piston engines and gearboxes (flat six, V8, superbike). |
 | `js/powertrains.js` | Turbofan, space freighter and horse models. |
-| `js/art.js` | Neon line artwork for each sound. |
+| `js/signs.js` | The neon sign for each sound: icon, lettering, colour. |
 | `js/fusion.js` | GPS + phone sensor fusion and automatic calibration. |
 | `js/engine-worklet.js` | The AudioWorklet: hosts the synths and switches between them. |
 | `js/synth-piston.js` | Engine synthesizer and its three voicings. |
@@ -413,11 +420,16 @@ there, the console object above is the place to look.
 
 ## Credits
 
-- Fonts: [Michroma](https://fonts.google.com/specimen/Michroma) and
-  [Barlow Semi Condensed](https://fonts.google.com/specimen/Barlow+Semi+Condensed),
-  both under the SIL Open Font License 1.1. They are served from
-  `assets/fonts/`, with their licenses alongside.
+- Fonts: [Michroma](https://fonts.google.com/specimen/Michroma),
+  [Barlow Semi Condensed](https://fonts.google.com/specimen/Barlow+Semi+Condensed)
+  and [Tilt Neon](https://fonts.google.com/specimen/Tilt+Neon), all under the
+  SIL Open Font License 1.1. They are served from `assets/fonts/`, with their
+  licenses alongside.
+- The superbike, plane and horse icons are from
+  [Hugeicons](https://hugeicons.com) (MIT licence); the 911, fastback and
+  freighter icons are drawn in the same style for Untesled (licence in
+  `assets/LICENSE-hugeicons.txt`).
 - Untesled is a fan project. It is not affiliated with or endorsed by
   Porsche, Tesla, Ford, CFM International or Lucasfilm. Every sound is an
   original synthesis inspired by the real (or fictional) thing, not a
-  recording, and the drawings are original.
+  recording.

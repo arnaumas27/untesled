@@ -12,6 +12,12 @@
   font-display: swap;
 }
 @font-face {
+  font-family: 'Tilt Neon';
+  src: url('assets/fonts/tilt-neon-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
   font-family: 'Barlow Semi Condensed';
   src: url('assets/fonts/barlow-semi-condensed-400.woff2') format('woff2');
   font-weight: 400;
@@ -287,56 +293,85 @@ kbd {
 /* Auto margins centre the panel when it fits and never push it off the top. */
 .zone-side > .panel { margin: auto 0; }
 
-/* ---------- car illustration ---------- */
+/* ---------- the neon sign (see js/signs.js) ---------- */
 
 .car-art {
   margin: 0;
   position: relative;
 }
 
-.car-art svg {
+.art-frame {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+.sign {
+  position: relative;
+  will-change: transform, opacity;
+}
+
+.sign-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.sign-on {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  will-change: opacity;
+}
+
+.sign-icon {
   display: block;
-  width: 100%;
+  width: clamp(110px, 12vw, 200px);
   height: auto;
-  max-height: 30vh;
   overflow: visible;
 }
 
-.art-frame {
-  position: relative;
+.sign-title {
+  margin-top: 4px;
+  font-family: 'Tilt Neon', var(--font-display);
+  font-size: clamp(34px, 3.9vw, 70px);
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
-/* Neon line art: a crisp core plus two wider, fainter copies for the glow. */
-.art .neon-core,
-.art .neon-mid,
-.art .neon-halo {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.sign-sub {
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: clamp(11px, 0.85vw, 15px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
-.art .neon-core { stroke-width: 2.6; }
-.art .neon-mid { stroke-width: 7; opacity: 0.32; }
-.art .neon-halo { stroke-width: 18; opacity: 0.1; }
-.art .floor { stroke: var(--line); stroke-width: 1.5; }
-.art [data-glow] { opacity: 0; }
-.art .head-glow { opacity: 0; transition: opacity 0.6s; }
-.art .tail-glow { opacity: 0; transition: opacity 0.15s; }
-.art-thumb .neon-core { stroke-width: 9; }
 
-.flame { opacity: 0; transform-box: fill-box; transform-origin: 100% 50%; }
+/* Unlit: bare glass tubes. */
+.sign-off .sign-icon { color: rgba(150, 180, 225, 0.2); }
+.sign-off .sign-title,
+.sign-off .sign-sub { color: rgba(150, 180, 225, 0.17); }
 
-.app[data-engine='running'] .head-glow { opacity: 0.85; }
-.app[data-engine='running'] .tail-glow { opacity: 0.35; }
-.app[data-braking='true'] .tail-glow { opacity: 1; }
-.app[data-engine='running'] .beacon { animation: beacon 1.2s steps(1) infinite; }
-
-@keyframes beacon {
-  0% { opacity: 1; }
-  12% { opacity: 0.15; }
+/* Lit: a white-hot tube with the colour glowing around it. */
+.sign-on .sign-icon {
+  color: #f6fdff;
+  filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 5px var(--c)) drop-shadow(0 0 14px var(--c)) drop-shadow(0 0 34px var(--c));
+}
+.sign-on .sign-title {
+  color: #fffaf6;
+  text-shadow: 0 0 2px #fff, 0 0 7px var(--c), 0 0 16px var(--c), 0 0 34px var(--c), 0 0 64px var(--c);
+}
+.sign-on .sign-sub {
+  color: var(--c);
+  text-shadow: 0 0 6px var(--c), 0 0 16px var(--c);
 }
 
 .engine-spec {
   display: flex;
+  justify-content: center;
   gap: 12px;
   margin-top: 6px;
   color: var(--muted);
@@ -996,15 +1031,14 @@ kbd {
   font-size: 17px;
 }
 
-.sound-grid button svg {
+.sound-grid .thumb-icon {
   display: block;
-  width: 100%;
-  height: auto;
-  max-height: 56px;
-  filter: drop-shadow(0 0 3px rgba(79, 216, 255, 0.35));
+  width: 60px;
+  height: 46px;
+  color: #f6fdff;
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 4px var(--c)) drop-shadow(0 0 10px var(--c));
 }
 
-.sound-grid .floor { stroke: var(--line); stroke-width: 3; }
 
 .sound-grid button[aria-pressed='true'] {
   border-color: var(--sky);

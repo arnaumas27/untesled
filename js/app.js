@@ -261,7 +261,6 @@ function frame(now) {
     accel: fused.accel,
     lateral: fused.lateral,
     canRev: vehicle.running && !!stopped,
-    paw: revHeld,
     trackG: ['phone+gps', 'phone', 'gps'].includes(fused.source),
   });
   requestAnimationFrame(frame);

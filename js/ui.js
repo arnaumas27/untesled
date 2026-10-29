@@ -5,8 +5,7 @@
  */
 
 import { shiftLights } from './vehicle.js';
-import { artSvg, artTraits } from './art.js';
-import { GAITS } from './synth-carriage.js';
+import { signHtml, iconSvg } from './signs.js';
 import { SOUNDS } from './sounds.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -81,7 +80,6 @@ export class CarUI {
       revBtn: $('revBtn'),
       startNoun: $('startNoun'),
       artFrame: $('artFrame'),
-      specLabel: $('specLabel'),
       soundGrid: $('soundGrid'),
       soundHint: $('soundHint'),
       popsSetting: $('popsSetting'),
@@ -110,12 +108,14 @@ export class CarUI {
     this._drawGMax();
     this.handlers = {};
     this.units = 'kmh';
-    this.flameAmp = 0;
+    this.popFlicker = 0; // pop flicker on the sign
     this.lastGear = null;
     this.shiftFlashUntil = 0;
     this.time = 0;
-    this.fanAngle = 0;
     this.stridePhase = 0;
+    this.lit = 0; // sign brightness 0..1
+    this.litShown = -1;
+    this.litSince = 0; // seconds since the sign was switched on
     this.sound = null;
     this._buildSoundPicker();
     this._bindControls();
@@ -138,7 +138,7 @@ export class CarUI {
   /** One button per sound in Settings, each with a small drawing. */
   _buildSoundPicker() {
     this.el.soundGrid.innerHTML = SOUNDS.map(
-      (snd) => `<button type="button" data-value="${snd.id}" aria-pressed="false">${artSvg(snd.id, { prefix: `thumb-${snd.id}`, thumb: true })}<span>${snd.name}</span></button>`,
+      (snd) => `<button type="button" data-value="${snd.id}" aria-pressed="false">${iconSvg(snd.id, 'thumb-icon')}<span>${snd.name}</span></button>`,
     ).join('');
   }
 
@@ -149,27 +149,21 @@ export class CarUI {
     const e = this.el;
     this._buildTach(sound.dial);
     this.ledState = '';
-    setText(e.specLabel, sound.spec);
     setText(e.startNoun, sound.startNoun);
     setText(e.revBtn, sound.revLabel);
     setText(e.soundHint, sound.hint);
     e.popsSetting.hidden = !sound.pops;
     this.app.dataset.sound = sound.id;
 
-    // Artwork, and the parts that move.
-    e.artFrame.innerHTML = artSvg(sound.id);
-    const q = (sel) => Array.from(e.artFrame.querySelectorAll(sel));
-    this.art = {
-      body: e.artFrame.querySelector('[data-body]'),
-      spins: q('[data-spin]').map((el) => ({ el, cx: el.dataset.cx, cy: el.dataset.cy, rm: Number(el.dataset.rm), angle: 0 })),
-      fans: q('[data-fan]'),
-      glows: q('[data-glow]').map((el) => ({ el, base: Number(el.getAttribute('opacity') || 1) })),
-      flame: e.artFrame.querySelector('[data-flame]'),
-      legs: q('[data-leg]').map((el) => ({ el, leg: Number(el.dataset.leg), seg: el.dataset.seg })),
-      tail: e.artFrame.querySelector('[data-tail]'),
-      ...artTraits(sound.id),
+    // The neon sign for this sound.
+    e.artFrame.innerHTML = signHtml(sound.id);
+    this.sign = {
+      root: e.artFrame.querySelector('.sign'),
+      on: e.artFrame.querySelector('.sign-on'),
+      icons: Array.from(e.artFrame.querySelectorAll('.sign-icon')),
     };
-    this.lastGlow = -1;
+    this.litShown = -1;
+    this.litSince = 0;
     this.lastGear = null;
     if (this.lastSettings) this.applySettings(this.lastSettings);
   }
@@ -431,9 +425,9 @@ export class CarUI {
   // Per-frame rendering
   // ---------------------------------------------------------------------
 
-  /** Exhaust flame for a pop of strength 0..1. */
+  /** An exhaust pop of strength 0..1: the sign flickers. */
   pop(amp) {
-    this.flameAmp = Math.max(this.flameAmp, 0.45 + 0.55 * amp);
+    this.popFlicker = Math.max(this.popFlicker, 0.45 + 0.55 * amp);
   }
 
   /**
@@ -487,7 +481,7 @@ export class CarUI {
     e.powerLoad.style.transform = `scaleX(${Math.min(1, Math.max(0, d.load)).toFixed(3)})`;
     e.powerRegen.style.transform = `scaleX(${off ? 0 : Math.min(1, d.regen).toFixed(3)})`;
 
-    this._animateArt(s, d);
+    this._animateSign(s, d);
 
     // G-meter: live dot (up = accelerating, left = turning left) and maxima.
     if (!e.panels.g.hidden) {
@@ -505,94 +499,65 @@ export class CarUI {
     }
   }
 
-  /** Wheels turn with speed, the body shakes with the engine and pitches with acceleration. */
-  _animateArt(s, d) {
-    const art = this.art;
-    if (!art) return;
-    const still = reducedMotion();
-    if (!still) {
-      const dt = s.dt;
-      for (const w of art.spins) {
-        w.angle = (w.angle + Math.min((s.speed / w.rm) * 57.3, 1080) * dt) % 360;
-        w.el.setAttribute('transform', `rotate(${w.angle.toFixed(1)} ${w.cx} ${w.cy})`);
-      }
-      if (art.fans.length) {
-        this.fanAngle = (this.fanAngle + (d.spin || 0) * 1900 * dt) % 360;
-        for (const f of art.fans) f.setAttribute('transform', `rotate(${this.fanAngle.toFixed(1)})`);
-      }
-      let y = d.shake * Math.sin(this.time * Math.PI * 2 * d.shakeHz);
-      if (art.hover) y += 4 * Math.sin(this.time * 1.4);
-      let x = 0;
-      let sx = 1;
-      let opacity = 1;
-      if (d.jump != null) {
-        // Hyperspace: shake while charging, streak off to the right, come back.
-        const j = d.jump;
-        if (j < 1.1) y += 2.5 * (j / 1.1) * Math.sin(this.time * 90);
-        else if (j < 1.45) {
-          const k = (j - 1.1) / 0.35;
-          sx = 1 + 2.5 * k;
-          x = 900 * k * k;
-          opacity = 1 - k;
-        } else if (j < 2.6) opacity = 0;
-        else opacity = Math.min(1, (j - 2.6) / 0.6);
-      }
-      if (art.hasLegs) y += this._legs(s, d);
-      const pitch = Math.max(-1.4, Math.min(1.4, -s.accel * 0.16));
-      art.body.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(2)}) rotate(${pitch.toFixed(2)} 550 300) scale(${sx.toFixed(3)} 1)`);
-      art.body.style.opacity = opacity === 1 ? '' : opacity.toFixed(2);
-    }
-    // Engine glows (jet exhaust, sublight drive, lantern).
-    const glow = Math.round(d.glow * 50) / 50;
-    if (glow !== this.lastGlow) {
-      this.lastGlow = glow;
-      for (const g of art.glows) g.el.style.opacity = (g.base * glow).toFixed(2);
-    }
-    const flame = art.flame;
-    if (!flame) return;
-    if (this.flameAmp > 0.02) {
-      flame.style.opacity = this.flameAmp.toFixed(2);
-      flame.style.transform = `scaleX(${(0.5 + this.flameAmp * 0.9).toFixed(2)})`;
-      this.flameAmp *= Math.exp(-s.dt / 0.07);
-    } else if (this.flameAmp) {
-      this.flameAmp = 0;
-      flame.style.opacity = '0';
-    }
-  }
+  /**
+   * The neon sign: it flickers on when the engine starts, glows brighter with
+   * the throttle, flickers with exhaust pops and fades out at shutdown.
+   */
+  _animateSign(s, d) {
+    const sign = this.sign;
+    if (!sign) return;
+    const dt = s.dt;
+    const on = d.state === 'running' || d.state === 'cranking';
+    this.litSince = on ? this.litSince + dt : 0;
 
-  /** Horse legs follow the gait; returns the body's bounce. */
-  _legs(s, d) {
-    const gait = d.gait || 0;
-    const g = GAITS[gait];
-    if (gait > 0) this.stridePhase = (this.stridePhase + d.stride * s.dt) % 1;
-    const swing = [0, 14, 20, 24, 30][gait];
-    const fold = [0, 30, 55, 62, 70][gait];
-    for (const part of this.art.legs) {
-      let angle = 0;
-      if (gait > 0) {
-        const beat = g.beats.find((b) => b[1] === part.leg);
-        const local = (this.stridePhase - beat[0] + 1) % 1;
-        if (local < g.duty) {
-          // Hoof on the ground: the leg sweeps from forward to back.
-          if (part.seg === 'upper') angle = -swing + (2 * swing * local) / g.duty;
-        } else {
-          // In the air: back to the front, folding the lower leg.
-          const k = (local - g.duty) / (1 - g.duty);
-          if (part.seg === 'upper') angle = swing - 2 * swing * (0.5 - 0.5 * Math.cos(Math.PI * k));
-          else angle = (part.leg < 2 ? 1 : -1) * fold * Math.sin(Math.PI * k);
-        }
-      } else if (part.seg === 'upper' && s.paw && part.leg === 1) {
-        angle = -18 * Math.max(0, Math.sin(this.time * 9));
-      }
-      part.el.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
+    let target = 0;
+    if (on) {
+      const t = this.litSince;
+      // A real neon tube strikes with a few stutters before it settles.
+      const strike = t < 0.06 ? 0.9 : t < 0.12 ? 0 : t < 0.17 ? 0.7 : t < 0.3 ? 0.05 : t < 0.36 ? 1 : t < 0.42 ? 0.2 : t < 0.5 ? 1 : t < 0.55 ? 0.45 : 1;
+      target = strike * (0.86 + 0.14 * Math.min(1, Math.max(0, d.load)));
+      // The freighter's hyperdrive failing to catch: erratic flicker.
+      if (d.gear === 'Fail') target = Math.sin(this.time * 41) > 0.35 ? 0.55 : 0.04;
+      if (d.state === 'cranking' && d.gear !== 'Fail') target *= 0.8;
     }
-    if (this.art.tail) {
-      const sway = gait > 0 ? 4 * Math.sin(this.stridePhase * Math.PI * 2) : 1.5 * Math.sin(this.time * 0.8);
-      this.art.tail.setAttribute('transform', `rotate(${sway.toFixed(1)} 672 172)`);
+    if (this.popFlicker > 0.02) {
+      target *= 1 - 0.5 * this.popFlicker;
+      this.popFlicker *= Math.exp(-dt / 0.06);
+    } else this.popFlicker = 0;
+    // Strikes and flickers are instant; dimming at shutdown is a short fade.
+    this.lit = target >= this.lit || on ? target : this.lit + (target - this.lit) * (1 - Math.exp(-dt / 0.3));
+    if (Math.abs(this.lit - this.litShown) > 0.01 || (this.lit === 0 && this.litShown !== 0)) {
+      this.litShown = this.lit;
+      sign.on.style.opacity = this.lit.toFixed(2);
     }
-    const bounce = [0, 0.6, 2.2, 2.8, 3.2][gait];
-    const beats = gait === 2 ? 2 : 1;
-    return -bounce * Math.abs(Math.sin(this.stridePhase * Math.PI * beats));
+
+    if (reducedMotion()) return;
+    // The icon trembles with the engine; the horse trots with its stride.
+    let y = 0;
+    if (d.gait > 0) {
+      this.stridePhase = (this.stridePhase + d.stride * dt) % 1;
+      const bounce = [0, 1, 2.6, 3.2, 3.6][d.gait];
+      y = -bounce * Math.abs(Math.sin(this.stridePhase * Math.PI * (d.gait === 2 ? 2 : 1)));
+    } else if (d.shake) {
+      y = 0.35 * d.shake * Math.sin(this.time * Math.PI * 2 * d.shakeHz);
+    }
+    const iconTransform = y ? `translateY(${y.toFixed(2)}px)` : '';
+    for (const icon of sign.icons) if (icon.style.transform !== iconTransform) icon.style.transform = iconTransform;
+
+    // Hyperspace: the sign stretches and streaks off to the right, then comes back.
+    let transform = '';
+    let opacity = '';
+    if (d.jump != null) {
+      const j = d.jump;
+      if (j >= 1.1 && j < 1.45) {
+        const k = (j - 1.1) / 0.35;
+        transform = `translateX(${(140 * k * k).toFixed(0)}%) scaleX(${(1 + 2.5 * k).toFixed(2)})`;
+        opacity = (1 - k).toFixed(2);
+      } else if (j >= 1.45 && j < 2.6) opacity = '0';
+      else if (j >= 2.6) opacity = Math.min(1, (j - 2.6) / 0.6).toFixed(2);
+    }
+    if (sign.root.style.transform !== transform) sign.root.style.transform = transform;
+    if (sign.root.style.opacity !== opacity) sign.root.style.opacity = opacity;
   }
 
   _leds(value) {

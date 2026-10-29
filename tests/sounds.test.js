@@ -5,7 +5,7 @@ import { Vehicle, V8, MOTO } from '../js/vehicle.js';
 import { Turbofan, Freighter, Carriage, strideRate, TRIGGERS } from '../js/powertrains.js';
 import { createSynth, SynthHost } from '../js/engine-worklet.js';
 import { GAITS } from '../js/synth-carriage.js';
-import { artSvg, ART } from '../js/art.js';
+import { signHtml, SIGNS } from '../js/signs.js';
 
 const DT = 1 / 60;
 const SR = 48000;
@@ -30,8 +30,8 @@ test('every sound has a model, a dial, artwork and sane output from start to sto
   assert.equal(SOUNDS.length, 6);
   assert.equal(soundById('nope').id, 'flat6');
   for (const s of SOUNDS) {
-    assert.ok(ART[s.id], `${s.id} has artwork`);
-    assert.match(artSvg(s.id), /<svg[\s\S]*data-body/);
+    assert.ok(SIGNS[s.id], `${s.id} has a neon sign`);
+    assert.match(signHtml(s.id), /sign-off[\s\S]*<svg[\s\S]*sign-on[\s\S]*<svg/);
     const m = s.make();
     m.start();
     const { frames } = run(m, 8, (t) => ({ accel: t < 4 ? 0 : 3 }));
