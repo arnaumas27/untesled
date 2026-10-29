@@ -83,6 +83,12 @@ The maxima are kept between visits; **Reset max G** clears them.
 Sound plays at full volume; turn it up or down with the car's own volume
 control.
 
+The screen adapts to the browser window. While driving, the Tesla browser
+is nearly square (about 1180 × 880 on a Model 3/Y): the dial then takes the
+left side with Start and Rev under it, and a compact neon sign sits above
+the G-meter (or the pairing code) on the right. Parked in full screen, the
+sign, the dial and the panel sit side by side.
+
 ### Permissions
 
 | Device | What it asks | If you said no |

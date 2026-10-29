@@ -44,6 +44,6 @@ export function signHtml(id) {
   const face = (cls) =>
     `<div class="sign-face ${cls}"${cls === 'sign-on' ? '' : ' aria-hidden="true"'}>` +
     `<svg class="sign-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[s.icon]}</svg>` +
-    `<div class="sign-title">${s.title}</div><div class="sign-sub">${s.sub}</div></div>`;
+    `<div class="sign-text"><div class="sign-title">${s.title}</div><div class="sign-sub">${s.sub}</div></div></div>`;
   return `<div class="sign" style="--c:${s.color}">${face('sign-off')}${face('sign-on')}</div>`;
 }
