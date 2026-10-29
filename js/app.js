@@ -6,6 +6,9 @@
  *              ├─► Fusion ─► Vehicle ─► EngineAudio (AudioWorklet)
  *   Phone ─────┘     ▲            └────► CarUI
  *   (via relay)      └── Simulator (optional)
+ *
+ * The "vehicle" is whichever sound is picked in Settings (sounds.js): an
+ * engine model, a turbofan, a space freighter or a horse.
  */
 
 import { CONFIG, resolveBrokers } from './config.js';
@@ -13,8 +16,9 @@ import { CarLink, newSessionCode, isValidCode, formatCode } from './link.js';
 import { qrSvg } from './qr.js';
 import { GpsTracker } from './gps.js';
 import { Fusion } from './fusion.js';
-import { Vehicle } from './vehicle.js';
 import { EngineAudio } from './audio.js';
+import { soundById, DEFAULT_SOUND } from './sounds.js';
+import { TRIGGERS } from './powertrains.js';
 import { Simulator, bindPedal } from './simulator.js';
 import { CarUI } from './ui.js';
 
@@ -24,7 +28,7 @@ import { CarUI } from './ui.js';
 
 const STORE_KEY = 'untesled.settings';
 const CODE_KEY = 'untesled.code';
-const DEFAULTS = { mode: 'sport', pops: 'wild', units: 'kmh', sim: false, gpsOnly: false };
+const DEFAULTS = { sound: DEFAULT_SOUND, mode: 'sport', pops: 'wild', units: 'kmh', sim: false, gpsOnly: false };
 const POPS = { off: 0, mild: 0.5, wild: 1 };
 
 function load(key, fallback) {
@@ -57,7 +61,8 @@ if (!isValidCode(code)) {
 
 const ui = new CarUI();
 const fusion = new Fusion();
-const vehicle = new Vehicle();
+let sound = soundById(settings.sound);
+let vehicle = sound.make();
 const sim = new Simulator();
 const audio = new EngineAudio();
 const gps = new GpsTracker((fix) => fusion.addGps(fix));
@@ -67,7 +72,7 @@ const link = new CarLink({ code, brokers, onMotion: (sample) => fusion.addPhone(
 let revHeld = false;
 let revLevel = 0; // the REV button opens the throttle gradually, like a foot would
 let audioError = null;
-let latest = { engine: vehicle.output(), fused: fusion.state(performance.now()) };
+let latest = { display: vehicle.display(), fused: fusion.state(performance.now()) };
 
 audio.onPop = (amp) => ui.pop(amp);
 audio.onStateChange = () => refreshStatus();
@@ -109,7 +114,21 @@ function renderPairing() {
 // Settings handling
 // ---------------------------------------------------------------------------
 
+/** Switch to another sound. A running engine restarts as the new one. */
+function setSound(id) {
+  const next = soundById(id);
+  settings.sound = next.id;
+  ui.setSound(next);
+  audio.setVoice(next.id);
+  if (next === sound) return;
+  sound = next;
+  const wasOn = vehicle.on;
+  vehicle = sound.make();
+  if (wasOn) vehicle.start();
+}
+
 function applySettings() {
+  setSound(settings.sound);
   vehicle.setMode(settings.mode);
   audio.setVolume(1); // full volume: adjust it with the car's own volume control
   fusion.setSim(settings.sim);
@@ -217,21 +236,12 @@ function tick() {
   // Holding REV squeezes the throttle open over about a second; letting go shuts it at once.
   const revTarget = revHeld && stopped ? 1 : 0;
   revLevel += (revTarget - revLevel) * (1 - Math.exp(-dt / (revTarget > revLevel ? 0.9 : 0.06)));
-  const engine = vehicle.update(dt, { speed: fused.speed, accel: fused.accel, rev: revLevel });
+  vehicle.update(dt, { speed: fused.speed, accel: fused.accel, rev: revLevel });
+  for (const ev of vehicle.takeEvents()) if (TRIGGERS.has(ev)) audio.trigger(ev);
+  audio.setParams(vehicle.synthParams({ pops: POPS[settings.pops] }));
+  const display = vehicle.display();
 
-  audio.setParams({
-    rpm: engine.rpm,
-    load: engine.load,
-    overrun: engine.overrun,
-    cut: engine.cut ? 1 : 0,
-    ignition: engine.ignition ? 1 : 0,
-    starter: engine.starter ? 1 : 0,
-    crackle: engine.crackle * POPS[settings.pops],
-    exhaust: engine.exhaust,
-    cold: engine.cold,
-  });
-
-  latest = { engine, fused, stopped };
+  latest = { display, fused, stopped };
 }
 setInterval(tick, 16);
 
@@ -243,14 +253,15 @@ let lastFrame = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - lastFrame) / 1000);
   lastFrame = now;
-  const { engine, fused, stopped } = latest;
+  const { display, fused, stopped } = latest;
   ui.render({
     dt,
-    engine,
+    display,
     speed: fused.speed,
     accel: fused.accel,
     lateral: fused.lateral,
     canRev: vehicle.running && !!stopped,
+    paw: revHeld,
     trackG: ['phone+gps', 'phone', 'gps'].includes(fused.source),
   });
   requestAnimationFrame(frame);
@@ -336,9 +347,9 @@ function refreshStatus() {
     msg = "Phone signal lost. Using GPS until it's back. Is the phone's screen still on?";
     tone = 'warn';
   } else if (!engineOn) {
-    if (p.streaming) msg = 'Phone connected. Tap Start to fire up the engine.';
-    else if (panel === 'pair') msg = 'Tap Start to fire up the engine. Scan the code to pair your phone for instant throttle.';
-    else msg = 'Tap Start to fire up the engine.';
+    if (p.streaming) msg = `Phone connected. Tap Start to ${sound.ready}.`;
+    else if (panel === 'pair') msg = `Tap Start to ${sound.ready}. Scan the code to pair your phone for instant throttle.`;
+    else msg = `Tap Start to ${sound.ready}.`;
     tone = p.streaming ? 'ok' : 'idle';
   } else if (p.streaming && fused.calibration === 'learning') {
     msg = 'Phone connected. Drive off normally: it learns which way is forward within seconds.';
@@ -365,12 +376,14 @@ function refreshStatus() {
   ui.setStatus(msg, tone);
 
   // Mirror the engine to the phone screen.
-  const e = latest.engine;
+  const d = latest.display;
   const speed = settings.units === 'mph' ? fused.speed * 2.23694 : fused.speed * 3.6;
   link.setTelemetry({
     on: vehicle.running ? 1 : 0,
-    rpm: Math.round(e.rpm / 10) * 10,
-    gear: !vehicle.running ? '–' : e.neutral ? 'N' : String(e.gear),
+    rpm: Math.round(d.value / 10) * 10,
+    rd: d.readout,
+    bar: Math.round((Math.min(d.value, sound.dial.max) / sound.dial.max) * 100) / 100,
+    gear: d.gear,
     spd: Math.round(speed),
     u: settings.units === 'mph' ? 'mph' : 'km/h',
     cal: fused.calibration,
@@ -404,4 +417,18 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 }
 
 // Expose for debugging in the browser console.
-window.untesled = { vehicle, fusion, link, audio, gps, sim, settings, config: CONFIG };
+window.untesled = {
+  get vehicle() {
+    return vehicle;
+  },
+  get sound() {
+    return sound;
+  },
+  fusion,
+  link,
+  audio,
+  gps,
+  sim,
+  settings,
+  config: CONFIG,
+};

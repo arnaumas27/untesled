@@ -1,19 +1,22 @@
 # Untesled
 
-A flat-six engine for your Tesla. Untesled is a static web app that runs in
-the Tesla's browser and plays a synthesized 4.0-litre, 9,000 rpm,
-GT3-style boxer through the car's speakers. It reacts to how you actually
-drive: the car's GPS gives the speed, and your phone's accelerometer gives
-an instant throttle.
+An engine for your Tesla. Untesled is a static web app that runs in the
+Tesla's browser and plays a synthesized engine through the car's speakers:
+by default a 4.0-litre, 9,000 rpm, GT3-style flat six, or, if you prefer, a
+70s V8, a superbike, a jet engine, a sci-fi space freighter or a horse and
+carriage. It reacts to how you actually drive: the car's GPS gives the speed,
+and your phone's accelerometer gives an instant throttle.
 
-![Car screen while accelerating, phone in the Tesla dock: 3rd gear, 139 km/h, 7,800 rpm](docs/screenshot-driving.png)
+![Car screen while accelerating, phone in the Tesla dock: 3rd gear, 125 km/h, 7,000 rpm](docs/screenshot-driving.png)
 
 | Pairing (first screen) | Phone, connected |
 | --- | --- |
 | ![Pairing screen with QR code](docs/screenshot-pairing.png) | ![Phone page connected to the car](docs/screenshot-phone.png) |
 
-- **No audio files.** Every sound is synthesized live in the browser: firing
-  pulses, exhaust pipes, intake howl, shift cuts, blips, pops and bangs.
+- **Six sounds, no audio files.** Every sound is synthesized live in the
+  browser: firing pulses, exhaust pipes, intake howl, shift cuts, blips, pops
+  and bangs, a turbofan spooling up, hooves on the road. Each sound has its
+  own neon artwork and its own dial.
 - **Scan and go.** The car shows a QR code. Scan it with your phone camera,
   tap Connect, done. It works on any network, with no app and no account.
 - **Works without the phone, too.** On GPS alone the engine follows your
@@ -27,8 +30,8 @@ an instant throttle.
 flowchart LR
   P["Phone<br/>accelerometer, 25 Hz"] -- "MQTT over wss<br/>(public relay)" --> F
   G["Car GPS<br/>speed, ~1 Hz"] --> F["Sensor fusion<br/>speed + acceleration"]
-  F --> V["Virtual GT3 drivetrain<br/>7 gears, shift map, rpm, load"]
-  V --> S["Flat-six synth<br/>AudioWorklet"]
+  F --> V["Virtual drivetrain<br/>of the chosen sound:<br/>gears, rpm, load…"]
+  V --> S["Synth<br/>AudioWorklet"]
   S --> SP(("Car speakers"))
 ```
 
@@ -37,8 +40,9 @@ flowchart LR
    relays at once and use whichever answers first.
 2. The car fuses that with its own GPS. GPS is the truth for speed, and the
    phone is the truth for acceleration (it reacts within about 0.1–0.2 s).
-3. A virtual 7-speed dual-clutch gearbox turns speed and acceleration into
-   gear, rpm and throttle, then feeds the engine synth.
+3. A virtual drivetrain (for the flat six, a 7-speed dual-clutch gearbox)
+   turns speed and acceleration into gear, rpm and throttle, then feeds the
+   synth.
 
 ## Use it in the car
 
@@ -64,7 +68,11 @@ too; use **Settings › New code** if you want a fresh one.
 
 While stopped, hold **Hold to rev** to rev the engine in neutral: the revs
 climb smoothly, like a foot pressing down, and reach the limiter after about
-four seconds. Let go and they drop back to idle.
+four seconds. Let go and they drop back to idle. With the other sounds the
+same button spools the jet to takeoff thrust, sends the freighter to
+hyperspace or makes the horse rear up (see *The sounds*).
+
+Pick the sound in **Settings › Sound**.
 
 Once a phone is paired (or you chose to drive without one), the right side
 shows the **G-meter**: a live dot for the current acceleration, braking and
@@ -88,16 +96,37 @@ published with SSL.
 
 ### Settings
 
+- **Sound**: one of the six sounds below. The artwork, the dial and the
+  readouts change with it. Switching while the engine runs restarts it as
+  the new one.
 - **Drive mode**:
   - *Comfort*: early upshifts and a quieter exhaust.
   - *Sport*: holds gears, blips on downshifts, crackles when you lift.
   - *Track*: revs to the limit, aggressive downshifts.
-- **Pops and bangs**: Off, Mild or Wild.
+
+  The other sounds use it too: how fast the jet spools, how eagerly the
+  freighter answers, whether the coachman uses the whip.
+- **Pops and bangs**: Off, Mild or Wild (engines only).
 - **Speed**: km/h or mph.
 - **Simulator**: on-screen throttle and brake pedals, also on the keyboard
   (↑ / ↓, hold Shift for half). The simulated car behaves like a Tesla, with
   instant torque and one-pedal regen. Try everything without a car or a phone.
 - **Pairing code**: shows the code and lets you make a new one.
+
+## The sounds
+
+![The six sounds, each with its own neon artwork](docs/screenshot-sounds.png)
+
+| Sound | What you hear | The dial | Hold the button (standing still) |
+| --- | --- | --- | --- |
+| **Flat six** (default) | Porsche 911 GT3: 4.0 boxer to 9,000 rpm, 7-speed PDK, blips, pops and bangs. | rpm | Revs in neutral to the limiter. |
+| **Classic V8** | A 70s muscle car: lumpy, burbling V8 idle, lazy 3-speed automatic with a slipping torque converter, no rev limiter, it just runs out of breath at 5,800 rpm. | rpm | Revs in neutral. |
+| **Superbike** | 1000 cc inline-four screaming to 14,000 rpm, 6-speed with quickshifter, autoblipper and crackle. | rpm | Revs in neutral. |
+| **Jet engine** | CFM56-style turbofan: air-starter whine, light-off, slow spool from idle, fan whine and the takeoff buzz-saw and roar. Brake hard from speed and the thrust reversers deploy. Stopping winds the spools down for a long while. | N1 % | Spools to takeoff thrust. |
+| **Space freighter** | Millennium Falcon-style sublight engines: throbbing, gritty roar and whine. Sometimes the hyperdrive won't catch at the first attempt. | power % | Hold for about three seconds at full power to **jump to hyperspace**. |
+| **Horse carriage** | Clip-clop! Walk, trot, canter and gallop follow your speed, with iron tyres rumbling, wooden creaks, harness bells, the brake squealing when you stop hard, a whinny when you set off and a snort when you stop. Floor it and the coachman cracks the whip. | strides per minute | The horse paws the ground, then rears up and whinnies. |
+
+![Settings: pick a sound](docs/screenshot-settings.png)
 
 ## Publish it
 
@@ -161,7 +190,13 @@ Everything lives in `js/config.js`:
 
 `js/engine-worklet.js` runs in an AudioWorklet on its own audio thread. A
 ScriptProcessor fallback runs the same code on browsers without worklets
-(force it with `?noworklet`). Per sample:
+(force it with `?noworklet`). It hosts one synth per sound and crossfades
+when you switch. The engines share one synth, `js/synth-piston.js`, voiced
+three ways (flat six, V8, inline-four); the others have their own files.
+
+### The engines
+
+For the flat six, per sample:
 
 - **Crankshaft and firing order.** One 720° cycle, six firings in the boxer
   order 1-6-2-4-3-5, alternating left bank (1–3) and right bank (4–6). The
@@ -197,16 +232,46 @@ ScriptProcessor fallback runs the same code on browsers without worklets
   throttle, and a bass shelf adds weight. A loudness curve keeps idle
   quieter than full throttle, and a limiter protects the speakers.
 
-Every character setting lives in one `VOICE` table at the top of
-`js/engine-worklet.js`: bank lag and strength, pulse length, pipe lengths,
-body resonances, intake, sub-bass and tone. Change it there to make the
-engine deeper or brighter.
+Every character setting lives in the `PISTON_VOICES` table at the top of
+`js/synth-piston.js`: cylinders and firing order, bank lag and strength,
+pulse length, pipe lengths, body resonances, intake, sub-bass, tone and
+loudness. Change it there to make an engine deeper or brighter.
 
-The synth uses about 2 % of one desktop CPU core.
+- **V8**: Ford's 1-5-4-2-6-3-7-8 firing order on a cross-plane crank, so each
+  bank fires unevenly into its own pipe: the burble. A big cam makes the
+  cylinders burn unevenly at idle (the lope). Long, muffled pipes and a
+  4-barrel carb's intake.
+- **Inline-four**: 1-2-4-3, 4-2-1 headers, short sharp pulses, a loud airbox
+  howl and very short pipes, for a scream rather than a rumble.
+
+### The jet, the freighter and the horse
+
+- **Turbofan** (`js/synth-jet.js`): the fan's blade-passing tone (24 blades)
+  and its harmonic, a moaning pair of tones while taxiing, the core
+  compressor's whine following N2, the buzz-saw rasp once the fan tips go
+  supersonic, and a broadband jet roar that gets louder and brighter with
+  thrust. Start-up has the air starter's rising whine and a light-off whump;
+  reverse thrust adds roar and rush.
+- **Space freighter** (`js/synth-freighter.js`): detuned sawtooths through a
+  resonant filter, pulsed like a breathing engine, a ring-modulated roar, a
+  turbine whine and electric crackle, all rising with power. Power-up and
+  power-down glides, a clunk when the reactor catches, the failed-hyperdrive
+  sputter and the hyperspace jump (charge, boom, whoosh).
+- **Horse carriage** (`js/synth-carriage.js`): every hoof strike excites a
+  few hollow resonances (the clip-clop), a thud and sometimes the clink of a
+  shoe, timed by the gait (walk four even beats, trot two diagonal pairs,
+  canter three beats, gallop four quick ones) with a short street echo.
+  Iron tyres rumble and clatter, the wheels knock once per turn, the wood
+  creaks, harness bells ring with the stride. The whinny is a sawtooth with a
+  quavering, falling pitch through horse-like formants; the snort is air
+  through fluttering lips; the whip is a swish and a crack.
+
+All the synths together use a few percent of one desktop CPU core.
 
 ## The virtual drivetrain
 
-`js/vehicle.js` models a 992 GT3-style PDK:
+`js/vehicle.js` models the engines and their gearboxes. For the flat six, a
+992 GT3-style PDK:
 
 - Ratios 3.75 / 2.38 / 1.72 / 1.34 / 1.11 / 0.96 / 0.84, final drive 4.47,
   315/30 R21 rear tyres. 100 km/h in 7th is about 2,750 rpm; 1st runs to
@@ -218,6 +283,17 @@ The synth uses about 2 % of one desktop CPU core.
   for engine braking. Upshifts cut the ignition; downshifts blip the
   throttle. Clutch slip at launch, a 9,000 rpm limiter, cranking and a
   cold-start fast idle.
+- The **V8** has a 3-speed automatic (2.46 / 1.46 / 1.00, 3.50 final drive):
+  slow shifts without ignition cut, a torque converter that slips more the
+  harder you push, and a long, lazy crank.
+- The **superbike** has six gears (1st runs to about 145 km/h), a
+  quickshifter (short ignition cuts on upshifts), an autoblipper and a
+  14,000 rpm limiter.
+
+`js/powertrains.js` models the rest: the turbofan's N1 and N2 spools (with
+lag, slower from idle) and its thrust reversers, the freighter's power level
+and hyperspace jump, and the horse's gait chosen from your speed (with
+hysteresis), the whip, and its moods while standing.
 
 ## How the phone is understood
 
@@ -249,14 +325,20 @@ The synth uses about 2 % of one desktop CPU core.
 
 | File | What it does |
 | --- | --- |
-| `index.html` | Car screen: tachometer, start button, car illustration, pairing and simulator. |
+| `index.html` | Car screen: dial, start button, artwork, pairing and simulator. |
 | `phone.html` | Phone screen: pairing and motion streaming. |
 | `style.css` | Styles for both pages. |
 | `js/app.js` | Car page: wires sensors, fusion, vehicle, audio, link and UI together. |
-| `js/ui.js` | Car screen rendering (tach, readouts, animated car, G-meter with saved maxima, panels, settings). |
-| `js/vehicle.js` | Virtual GT3 drivetrain. |
+| `js/ui.js` | Car screen rendering (dial, readouts, animated artwork, G-meter with saved maxima, panels, settings). |
+| `js/sounds.js` | The list of sounds: names, dials, labels, which model and synth. |
+| `js/vehicle.js` | Virtual piston engines and gearboxes (flat six, V8, superbike). |
+| `js/powertrains.js` | Turbofan, space freighter and horse models. |
+| `js/art.js` | Neon line artwork for each sound. |
 | `js/fusion.js` | GPS + phone sensor fusion and automatic calibration. |
-| `js/engine-worklet.js` | The flat-six synthesizer (AudioWorklet). |
+| `js/engine-worklet.js` | The AudioWorklet: hosts the synths and switches between them. |
+| `js/synth-piston.js` | Engine synthesizer and its three voicings. |
+| `js/synth-jet.js`, `js/synth-freighter.js`, `js/synth-carriage.js` | The other synthesizers. |
+| `js/dsp.js` | Filters, resonators and oscillators shared by the synths. |
 | `js/audio.js` | Web Audio graph, limiter, ScriptProcessor fallback. |
 | `js/gps.js` | Geolocation tracking and speed. |
 | `js/simulator.js` | Virtual pedals and a simple EV model. |
@@ -336,5 +418,6 @@ there, the console object above is the place to look.
   both under the SIL Open Font License 1.1. They are served from
   `assets/fonts/`, with their licenses alongside.
 - Untesled is a fan project. It is not affiliated with or endorsed by
-  Porsche or Tesla. The engine is an original synthesis inspired by
-  naturally aspirated flat-sixes, not a recording.
+  Porsche, Tesla, Ford, CFM International or Lucasfilm. Every sound is an
+  original synthesis inspired by the real (or fictional) thing, not a
+  recording, and the drawings are original.

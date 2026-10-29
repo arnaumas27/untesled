@@ -404,11 +404,14 @@ function render() {
   $('live').hidden = !showLive;
   $('stats').hidden = !showLive;
   if (showLive) {
-    setText($('liveGear'), car.on ? String(car.gear) : '–');
-    setText($('liveRpm'), Number(car.rpm || 0).toLocaleString('en-US'));
+    const gear = car.on ? String(car.gear) : '–';
+    setText($('liveGear'), gear);
+    $('liveGear').classList.toggle('is-word', gear.length > 2);
+    setText($('liveRpm'), car.rd || `${Number(car.rpm || 0).toLocaleString('en-US')} rpm`);
     setText($('liveSpeed'), String(car.spd || 0));
     setText($('liveUnit'), car.u || 'km/h');
-    $('liveBar').style.width = `${((1 - Math.min(1, (car.rpm || 0) / 9000)) * 100).toFixed(1)}%`;
+    const bar = Number.isFinite(car.bar) ? car.bar : (car.rpm || 0) / 9000;
+    $('liveBar').style.width = `${((1 - Math.min(1, bar)) * 100).toFixed(1)}%`;
     // What the car feels, as on its G-meter: up = accelerating, left = turning left.
     const g = 9.81 * 0.6;
     const x = Math.max(-1, Math.min(1, -(car.ay || 0) / g)) * 40;

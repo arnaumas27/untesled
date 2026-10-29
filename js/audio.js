@@ -1,12 +1,12 @@
 /**
- * audio.js — Web Audio output for the engine synth.
+ * audio.js — Web Audio output for the synths.
  *
  * Uses an AudioWorklet (audio runs on its own thread) and falls back to a
- * ScriptProcessorNode running the very same synth on browsers without
+ * ScriptProcessorNode running the very same synth host on browsers without
  * worklet support. Add `?noworklet` to the URL to force the fallback.
  */
 
-import { FlatSixSynth } from './engine-worklet.js';
+import { SynthHost } from './engine-worklet.js';
 
 /** Perceptual volume curve: slider 0..1 → gain. */
 const volumeToGain = (v) => v * v;
@@ -16,9 +16,10 @@ export class EngineAudio {
     this.ctx = null;
     this.node = null;
     this.master = null;
-    this.synth = null; // only in fallback mode
+    this.host = null; // only in fallback mode
     this.mode = null; // 'worklet' | 'script'
     this.volume = 0.7;
+    this.voice = 'flat6';
     /** Called with the pop strength (0..1) when the exhaust pops. */
     this.onPop = null;
     /** Called when the browser suspends or resumes audio. */
@@ -64,10 +65,11 @@ export class EngineAudio {
     if (!forceFallback && ctx.audioWorklet && typeof AudioWorkletNode === 'function') {
       try {
         await ctx.audioWorklet.addModule(new URL('./engine-worklet.js', import.meta.url));
-        this.node = new AudioWorkletNode(ctx, 'flat-six', {
+        this.node = new AudioWorkletNode(ctx, 'untesled-engine', {
           numberOfInputs: 0,
           numberOfOutputs: 1,
           outputChannelCount: [2],
+          processorOptions: { voice: this.voice },
         });
         this.node.port.onmessage = (e) => this._event(e.data);
         this.mode = 'worklet';
@@ -78,12 +80,12 @@ export class EngineAudio {
     }
 
     if (!this.node) {
-      const synth = (this.synth = new FlatSixSynth(ctx.sampleRate));
-      synth.onEvent = (ev) => this._event(ev);
+      const host = (this.host = new SynthHost(ctx.sampleRate, this.voice));
+      host.onEvent = (ev) => this._event(ev);
       const sp = ctx.createScriptProcessor(1024, 1, 2);
       sp.onaudioprocess = (e) => {
         const out = e.outputBuffer;
-        synth.render(out.getChannelData(0), out.getChannelData(1));
+        host.render(out.getChannelData(0), out.getChannelData(1));
       };
       this.node = sp;
       this.mode = 'script';
@@ -103,11 +105,28 @@ export class EngineAudio {
     }
   }
 
-  /** Engine state for the synth (see FlatSixSynth.setParams). */
-  setParams(p) {
+  /** Send a message to the synth host (see SynthHost.message). */
+  _send(msg) {
     if (!this.node) return;
-    if (this.mode === 'worklet') this.node.port.postMessage(p);
-    else this.synth.setParams(p);
+    if (this.mode === 'worklet') this.node.port.postMessage(msg);
+    else this.host.message(msg);
+  }
+
+  /** Current state for the synth (rpm, load… or n1, power, gait…). */
+  setParams(p) {
+    this._send(p);
+  }
+
+  /** Switch to another sound ('flat6', 'v8', 'moto', 'jet', 'freighter', 'carriage'). */
+  setVoice(voice) {
+    if (voice === this.voice) return;
+    this.voice = voice;
+    this._send({ voice });
+  }
+
+  /** A one-shot sound: whinny, whip, hyperspace jump… */
+  trigger(name) {
+    this._send({ trigger: name });
   }
 
   /** @param {number} v 0..1 */

@@ -4,23 +4,31 @@
  * cache is only used when the network fails or takes more than 4 s.
  */
 
-const CACHE = 'untesled-v1';
+const CACHE = 'untesled-v2';
 const ASSETS = [
   './',
   'index.html',
   'phone.html',
   'style.css',
   'js/app.js',
+  'js/art.js',
   'js/audio.js',
   'js/config.js',
+  'js/dsp.js',
   'js/engine-worklet.js',
   'js/fusion.js',
   'js/gps.js',
   'js/link.js',
   'js/mqtt.js',
   'js/phone.js',
+  'js/powertrains.js',
   'js/qr.js',
   'js/simulator.js',
+  'js/sounds.js',
+  'js/synth-carriage.js',
+  'js/synth-freighter.js',
+  'js/synth-jet.js',
+  'js/synth-piston.js',
   'js/ui.js',
   'js/vehicle.js',
   'assets/icon.svg',

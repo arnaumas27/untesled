@@ -1,22 +1,22 @@
 /**
- * ui.js — everything on the car screen: tachometer, readouts, the animated
- * car, status chips and messages, pairing / phone / simulator panels and the
- * settings drawer. It only displays state and reports taps; app.js decides.
+ * ui.js — everything on the car screen: the dial, readouts, the animated
+ * artwork, status chips and messages, pairing / G-meter / simulator panels and
+ * the settings drawer. It only displays state and reports taps; app.js decides.
  */
 
 import { shiftLights } from './vehicle.js';
+import { artSvg, artTraits } from './art.js';
+import { GAITS } from './synth-carriage.js';
+import { SOUNDS } from './sounds.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const C = 220; // tach centre (viewBox 440)
 const START_DEG = 135;
 const SWEEP_DEG = 270;
-const MAX_RPM = 10000;
-const REDLINE = 9000;
 
 const $ = (id) => document.getElementById(id);
 const rad = (deg) => (deg * Math.PI) / 180;
 const polar = (r, deg) => [C + r * Math.cos(rad(deg)), C + r * Math.sin(rad(deg))];
-const rpmAngle = (rpm) => START_DEG + (SWEEP_DEG * Math.min(Math.max(rpm, 0), MAX_RPM)) / MAX_RPM;
 const reducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function arcPath(r, a0, a1) {
@@ -79,10 +79,12 @@ export class CarUI {
       startLabel: $('startLabel'),
       startSub: $('startSub'),
       revBtn: $('revBtn'),
-      wheelRear: $('wheelRear'),
-      wheelFront: $('wheelFront'),
-      carBody: $('carBody'),
-      flame: $('flame'),
+      startNoun: $('startNoun'),
+      artFrame: $('artFrame'),
+      specLabel: $('specLabel'),
+      soundGrid: $('soundGrid'),
+      soundHint: $('soundHint'),
+      popsSetting: $('popsSetting'),
       status: $('statusMsg'),
       qr: $('qr'),
       pairCode: $('pairCode'),
@@ -108,12 +110,14 @@ export class CarUI {
     this._drawGMax();
     this.handlers = {};
     this.units = 'kmh';
-    this.wheelAngle = 0;
     this.flameAmp = 0;
     this.lastGear = null;
     this.shiftFlashUntil = 0;
     this.time = 0;
-    this._buildTach();
+    this.fanAngle = 0;
+    this.stridePhase = 0;
+    this.sound = null;
+    this._buildSoundPicker();
     this._bindControls();
     this._fitTach();
   }
@@ -131,25 +135,69 @@ export class CarUI {
   // Construction
   // ---------------------------------------------------------------------
 
-  _buildTach() {
+  /** One button per sound in Settings, each with a small drawing. */
+  _buildSoundPicker() {
+    this.el.soundGrid.innerHTML = SOUNDS.map(
+      (snd) => `<button type="button" data-value="${snd.id}" aria-pressed="false">${artSvg(snd.id, { prefix: `thumb-${snd.id}`, thumb: true })}<span>${snd.name}</span></button>`,
+    ).join('');
+  }
+
+  /** Switch the dial, labels and artwork to a sound from sounds.js. */
+  setSound(sound) {
+    if (this.sound === sound) return;
+    this.sound = sound;
+    const e = this.el;
+    this._buildTach(sound.dial);
+    this.ledState = '';
+    setText(e.specLabel, sound.spec);
+    setText(e.startNoun, sound.startNoun);
+    setText(e.revBtn, sound.revLabel);
+    setText(e.soundHint, sound.hint);
+    e.popsSetting.hidden = !sound.pops;
+    this.app.dataset.sound = sound.id;
+
+    // Artwork, and the parts that move.
+    e.artFrame.innerHTML = artSvg(sound.id);
+    const q = (sel) => Array.from(e.artFrame.querySelectorAll(sel));
+    this.art = {
+      body: e.artFrame.querySelector('[data-body]'),
+      spins: q('[data-spin]').map((el) => ({ el, cx: el.dataset.cx, cy: el.dataset.cy, rm: Number(el.dataset.rm), angle: 0 })),
+      fans: q('[data-fan]'),
+      glows: q('[data-glow]').map((el) => ({ el, base: Number(el.getAttribute('opacity') || 1) })),
+      flame: e.artFrame.querySelector('[data-flame]'),
+      legs: q('[data-leg]').map((el) => ({ el, leg: Number(el.dataset.leg), seg: el.dataset.seg })),
+      tail: e.artFrame.querySelector('[data-tail]'),
+      ...artTraits(sound.id),
+    };
+    this.lastGlow = -1;
+    this.lastGear = null;
+    if (this.lastSettings) this.applySettings(this.lastSettings);
+  }
+
+  _buildTach(dial) {
+    this.dial = dial;
     const ticks = $('tachTicks');
-    for (let rpm = 0; rpm <= MAX_RPM; rpm += 250) {
-      const a = rpmAngle(rpm);
-      const major = rpm % 1000 === 0;
+    ticks.textContent = '';
+    for (let v = 0; v <= dial.max; v += dial.minor) {
+      const a = this._angle(v);
+      const major = v % dial.major === 0;
       const [x0, y0] = polar(major ? 176 : 184, a);
       const [x1, y1] = polar(194, a);
       svgEl('line', { x1: x0, y1: y0, x2: x1, y2: y1, class: major ? 'tick-major' : 'tick-minor' }, ticks);
-      if (major) {
-        const [tx, ty] = polar(134, a);
-        const t = svgEl('text', { x: tx, y: ty, class: rpm >= REDLINE ? 'tick-num is-red' : 'tick-num' }, ticks);
-        t.textContent = String(rpm / 1000);
+      const label = major ? dial.label(v) : '';
+      if (label) {
+        const [tx, ty] = polar(label.length > 2 ? 124 : 134, a);
+        let cls = v >= dial.red ? 'tick-num is-red' : 'tick-num';
+        if (label.length > 2) cls += ' is-small';
+        const t = svgEl('text', { x: tx, y: ty, class: cls }, ticks);
+        t.textContent = label;
       }
     }
     const unit = svgEl('text', { x: C, y: 392, class: 'tick-unit' }, ticks);
-    unit.textContent = '×1000 rpm';
+    unit.textContent = dial.unit;
 
     $('tachTrack').setAttribute('d', arcPath(164, START_DEG, START_DEG + SWEEP_DEG));
-    $('tachRed').setAttribute('d', arcPath(164, rpmAngle(REDLINE), START_DEG + SWEEP_DEG));
+    $('tachRed').setAttribute('d', arcPath(164, this._angle(dial.red), START_DEG + SWEEP_DEG));
     const fill = this.el.fill;
     fill.setAttribute('d', arcPath(164, START_DEG, START_DEG + SWEEP_DEG));
     this.fillLength = typeof fill.getTotalLength === 'function' ? fill.getTotalLength() : 164 * rad(SWEEP_DEG);
@@ -157,13 +205,21 @@ export class CarUI {
     fill.style.strokeDashoffset = String(this.fillLength);
 
     // Shift lights along the top of the dial.
-    const leds = $('tachLeds');
-    this.leds = [];
-    for (let i = 0; i < 10; i++) {
-      const [x, y] = polar(208, 243 + (i * 54) / 9);
-      this.leds.push(svgEl('circle', { cx: x, cy: y, r: 7, class: 'led' }, leds));
+    if (!this.leds) {
+      const leds = $('tachLeds');
+      this.leds = [];
+      for (let i = 0; i < 10; i++) {
+        const [x, y] = polar(208, 243 + (i * 54) / 9);
+        this.leds.push(svgEl('circle', { cx: x, cy: y, r: 7, class: 'led' }, leds));
+      }
     }
     this.ledState = '';
+  }
+
+  /** Dial angle (degrees) for a value on the current dial. */
+  _angle(v) {
+    const max = this.dial.max;
+    return START_DEG + (SWEEP_DEG * Math.min(Math.max(v, 0), max)) / max;
   }
 
   _bindControls() {
@@ -210,7 +266,7 @@ export class CarUI {
     document.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape' && !e.settings.hidden) this.openSettings(false);
     });
-    for (const group of document.querySelectorAll('.segmented')) {
+    for (const group of document.querySelectorAll('.segmented, .sound-grid')) {
       group.addEventListener('click', (ev) => {
         const btn = ev.target.closest('button[data-value]');
         if (btn) this._emit('setting', group.dataset.setting, btn.dataset.value);
@@ -258,7 +314,8 @@ export class CarUI {
   // ---------------------------------------------------------------------
 
   applySettings(s) {
-    for (const group of document.querySelectorAll('.segmented')) {
+    this.lastSettings = s;
+    for (const group of document.querySelectorAll('.segmented, .sound-grid')) {
       const value = s[group.dataset.setting];
       for (const btn of group.querySelectorAll('button')) {
         btn.setAttribute('aria-pressed', String(btn.dataset.value === value));
@@ -269,11 +326,7 @@ export class CarUI {
     this.el.simToggle.checked = !!s.sim;
     this.app.dataset.sim = s.sim ? 'on' : 'off';
     const names = { comfort: 'Comfort', sport: 'Sport', track: 'Track' };
-    const hints = {
-      comfort: 'Early, smooth upshifts and a quieter exhaust at low load.',
-      sport: 'Holds gears longer, blips on downshifts, crackles when you lift.',
-      track: 'Revs to the limit, aggressive downshifts, maximum crackle.',
-    };
+    const hints = this.sound ? this.sound.modeHints : {};
     setText(this.el.modeLabel, names[s.mode] || 'Sport');
     setText(this.el.modeHint, hints[s.mode] || '');
   }
@@ -386,7 +439,7 @@ export class CarUI {
   /**
    * @param {object} s
    * @param {number} s.dt seconds since the last frame
-   * @param {object} s.engine vehicle output
+   * @param {object} s.display what the model shows (see Vehicle.display)
    * @param {number} s.speed m/s
    * @param {number} s.accel m/s²
    * @param {number} s.lateral m/s²
@@ -394,13 +447,14 @@ export class CarUI {
    */
   render(s) {
     const e = this.el;
-    const eng = s.engine;
+    const d = s.display;
+    const dial = this.dial;
     this.time += s.dt;
 
     // Engine state for CSS (lights, start ring).
-    if (this.app.dataset.engine !== eng.state) {
-      this.app.dataset.engine = eng.state;
-      const on = eng.state === 'running' || eng.state === 'cranking';
+    if (this.app.dataset.engine !== d.state) {
+      this.app.dataset.engine = d.state;
+      const on = d.state === 'running' || d.state === 'cranking';
       e.startBtn.setAttribute('aria-pressed', String(on));
       setText(e.startLabel, on ? 'Stop' : 'Start');
       setText(e.startSub, on ? 'Tap to stop' : 'Tap to start');
@@ -409,53 +463,31 @@ export class CarUI {
     if (this.app.dataset.braking !== String(braking)) this.app.dataset.braking = String(braking);
     if (e.revBtn.disabled === s.canRev) e.revBtn.disabled = !s.canRev;
 
-    // Tach.
-    const rpm = eng.rpm;
-    e.pointer.setAttribute('transform', `translate(${C} ${C}) rotate(${rpmAngle(rpm).toFixed(2)})`);
-    e.fill.style.strokeDashoffset = String(this.fillLength * (1 - Math.min(rpm, MAX_RPM) / MAX_RPM));
-    const zone = rpm >= 8300 ? 'red' : rpm >= 6800 ? 'hot' : 'cool';
+    // Dial.
+    const value = d.value;
+    e.pointer.setAttribute('transform', `translate(${C} ${C}) rotate(${this._angle(value).toFixed(2)})`);
+    e.fill.style.strokeDashoffset = String(this.fillLength * (1 - Math.min(value, dial.max) / dial.max));
+    const zone = value >= dial.red * 0.92 ? 'red' : value >= dial.red * 0.755 ? 'hot' : 'cool';
     if (e.tach.dataset.zone !== zone) e.tach.dataset.zone = zone;
-    this._leds(rpm);
+    this._leds(value);
 
     // Readouts.
-    const off = eng.state === 'off' || eng.state === 'cranking';
-    const gear = off ? '–' : eng.neutral ? 'N' : String(eng.gear);
-    if (gear !== this.lastGear) {
-      if (this.lastGear && gear !== '–' && this.lastGear !== '–') this.shiftFlashUntil = this.time + 0.25;
-      this.lastGear = gear;
-      setText(e.gear, gear);
+    if (d.gear !== this.lastGear) {
+      if (this.lastGear && d.gear !== '–' && this.lastGear !== '–' && !d.word) this.shiftFlashUntil = this.time + 0.25;
+      this.lastGear = d.gear;
+      setText(e.gear, d.gear);
+      e.gear.classList.toggle('is-word', !!d.word);
+      e.gear.classList.toggle('is-long', d.gear.length > 7);
     }
     e.gear.classList.toggle('is-shifting', this.time < this.shiftFlashUntil);
     const speed = this.units === 'mph' ? s.speed * 2.23694 : s.speed * 3.6;
     setText(e.speed, String(Math.round(speed)));
-    setText(e.rpm, (Math.round(rpm / 50) * 50).toLocaleString('en-US'));
-    const regen = Math.min(1, Math.max(0, eng.overrun, eng.pedal < 0 ? -eng.pedal : 0));
-    e.powerLoad.style.transform = `scaleX(${eng.load.toFixed(3)})`;
-    e.powerRegen.style.transform = `scaleX(${off ? 0 : regen.toFixed(3)})`;
+    setText(e.rpm, d.readout);
+    const off = d.state === 'off' || d.state === 'cranking';
+    e.powerLoad.style.transform = `scaleX(${Math.min(1, Math.max(0, d.load)).toFixed(3)})`;
+    e.powerRegen.style.transform = `scaleX(${off ? 0 : Math.min(1, d.regen).toFixed(3)})`;
 
-    // Car: wheels turn with speed, the body shakes with the engine and
-    // pitches with acceleration, flames on pops.
-    const still = reducedMotion();
-    if (!still) {
-      this.wheelAngle = (this.wheelAngle + Math.min(s.speed * 45, 720) * s.dt) % 360;
-      for (const w of [e.wheelRear, e.wheelFront]) {
-        w.setAttribute('transform', `rotate(${this.wheelAngle.toFixed(1)} ${w.dataset.cx} ${w.dataset.cy})`);
-      }
-      const running = eng.state === 'running' || eng.state === 'cranking';
-      const rpmN = Math.min(1, rpm / 9000);
-      const amp = running ? 1.4 * (1 - rpmN) + 0.7 * eng.load + (eng.state === 'cranking' ? 1.2 : 0) : 0;
-      const shake = amp * Math.sin(this.time * Math.PI * 2 * Math.max(rpm, 200) / 120);
-      const pitch = Math.max(-1.4, Math.min(1.4, -s.accel * 0.16));
-      e.carBody.setAttribute('transform', `translate(0 ${shake.toFixed(2)}) rotate(${pitch.toFixed(2)} 512 300)`);
-    }
-    if (this.flameAmp > 0.02) {
-      e.flame.style.opacity = this.flameAmp.toFixed(2);
-      e.flame.style.transform = `scaleX(${(0.5 + this.flameAmp * 0.9).toFixed(2)})`;
-      this.flameAmp *= Math.exp(-s.dt / 0.07);
-    } else if (this.flameAmp) {
-      this.flameAmp = 0;
-      e.flame.style.opacity = '0';
-    }
+    this._animateArt(s, d);
 
     // G-meter: live dot (up = accelerating, left = turning left) and maxima.
     if (!e.panels.g.hidden) {
@@ -473,8 +505,99 @@ export class CarUI {
     }
   }
 
-  _leds(rpm) {
-    const { lit, flash } = shiftLights(rpm);
+  /** Wheels turn with speed, the body shakes with the engine and pitches with acceleration. */
+  _animateArt(s, d) {
+    const art = this.art;
+    if (!art) return;
+    const still = reducedMotion();
+    if (!still) {
+      const dt = s.dt;
+      for (const w of art.spins) {
+        w.angle = (w.angle + Math.min((s.speed / w.rm) * 57.3, 1080) * dt) % 360;
+        w.el.setAttribute('transform', `rotate(${w.angle.toFixed(1)} ${w.cx} ${w.cy})`);
+      }
+      if (art.fans.length) {
+        this.fanAngle = (this.fanAngle + (d.spin || 0) * 1900 * dt) % 360;
+        for (const f of art.fans) f.setAttribute('transform', `rotate(${this.fanAngle.toFixed(1)})`);
+      }
+      let y = d.shake * Math.sin(this.time * Math.PI * 2 * d.shakeHz);
+      if (art.hover) y += 4 * Math.sin(this.time * 1.4);
+      let x = 0;
+      let sx = 1;
+      let opacity = 1;
+      if (d.jump != null) {
+        // Hyperspace: shake while charging, streak off to the right, come back.
+        const j = d.jump;
+        if (j < 1.1) y += 2.5 * (j / 1.1) * Math.sin(this.time * 90);
+        else if (j < 1.45) {
+          const k = (j - 1.1) / 0.35;
+          sx = 1 + 2.5 * k;
+          x = 900 * k * k;
+          opacity = 1 - k;
+        } else if (j < 2.6) opacity = 0;
+        else opacity = Math.min(1, (j - 2.6) / 0.6);
+      }
+      if (art.hasLegs) y += this._legs(s, d);
+      const pitch = Math.max(-1.4, Math.min(1.4, -s.accel * 0.16));
+      art.body.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(2)}) rotate(${pitch.toFixed(2)} 550 300) scale(${sx.toFixed(3)} 1)`);
+      art.body.style.opacity = opacity === 1 ? '' : opacity.toFixed(2);
+    }
+    // Engine glows (jet exhaust, sublight drive, lantern).
+    const glow = Math.round(d.glow * 50) / 50;
+    if (glow !== this.lastGlow) {
+      this.lastGlow = glow;
+      for (const g of art.glows) g.el.style.opacity = (g.base * glow).toFixed(2);
+    }
+    const flame = art.flame;
+    if (!flame) return;
+    if (this.flameAmp > 0.02) {
+      flame.style.opacity = this.flameAmp.toFixed(2);
+      flame.style.transform = `scaleX(${(0.5 + this.flameAmp * 0.9).toFixed(2)})`;
+      this.flameAmp *= Math.exp(-s.dt / 0.07);
+    } else if (this.flameAmp) {
+      this.flameAmp = 0;
+      flame.style.opacity = '0';
+    }
+  }
+
+  /** Horse legs follow the gait; returns the body's bounce. */
+  _legs(s, d) {
+    const gait = d.gait || 0;
+    const g = GAITS[gait];
+    if (gait > 0) this.stridePhase = (this.stridePhase + d.stride * s.dt) % 1;
+    const swing = [0, 14, 20, 24, 30][gait];
+    const fold = [0, 30, 55, 62, 70][gait];
+    for (const part of this.art.legs) {
+      let angle = 0;
+      if (gait > 0) {
+        const beat = g.beats.find((b) => b[1] === part.leg);
+        const local = (this.stridePhase - beat[0] + 1) % 1;
+        if (local < g.duty) {
+          // Hoof on the ground: the leg sweeps from forward to back.
+          if (part.seg === 'upper') angle = -swing + (2 * swing * local) / g.duty;
+        } else {
+          // In the air: back to the front, folding the lower leg.
+          const k = (local - g.duty) / (1 - g.duty);
+          if (part.seg === 'upper') angle = swing - 2 * swing * (0.5 - 0.5 * Math.cos(Math.PI * k));
+          else angle = (part.leg < 2 ? 1 : -1) * fold * Math.sin(Math.PI * k);
+        }
+      } else if (part.seg === 'upper' && s.paw && part.leg === 1) {
+        angle = -18 * Math.max(0, Math.sin(this.time * 9));
+      }
+      part.el.setAttribute('transform', `rotate(${angle.toFixed(1)})`);
+    }
+    if (this.art.tail) {
+      const sway = gait > 0 ? 4 * Math.sin(this.stridePhase * Math.PI * 2) : 1.5 * Math.sin(this.time * 0.8);
+      this.art.tail.setAttribute('transform', `rotate(${sway.toFixed(1)} 672 172)`);
+    }
+    const bounce = [0, 0.6, 2.2, 2.8, 3.2][gait];
+    const beats = gait === 2 ? 2 : 1;
+    return -bounce * Math.abs(Math.sin(this.stridePhase * Math.PI * beats));
+  }
+
+  _leds(value) {
+    const [start, end] = this.sound ? this.sound.lights : [6000, 8700];
+    const { lit, flash } = shiftLights(value, 10, start, end);
     const blinkOn = Math.floor(this.time * 10) % 2 === 0;
     const key = flash ? (blinkOn ? 'F1' : 'F0') : String(lit);
     if (key === this.ledState) return;
