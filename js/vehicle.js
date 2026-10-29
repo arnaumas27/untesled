@@ -53,8 +53,10 @@ export const MODES = {
 };
 
 const GEARS = ENGINE.gears.length;
-const CRANK_TIME = 0.95; // s of starter motor
-const CATCH_TIME = 0.55; // s into cranking when the first cylinders fire
+const CRANK_TIME = 0.85; // s of starter motor
+const CATCH_TIME = 0.62; // s into cranking when the first cylinders fire
+const FLARE_RPM = 1350; // how far the revs jump when a cold engine catches
+const COLD_RPM = 420; // extra idle speed while cold
 
 /** Engine RPM for road speed `v` (m/s) in `gear` (1-based) with the clutch locked. */
 export function rpmAtSpeed(v, gear) {
@@ -101,6 +103,7 @@ export class Vehicle {
     this.limiterTimer = 0;
     this.coldBoost = 0;
     this.flare = 0;
+    this.crankPhase = 0;
     this.prevLoadRaw = 0;
     this.idlePhase = 0;
     /** Discrete events since the last read: 'start', 'stop', 'up', 'down'. */
@@ -200,6 +203,7 @@ export class Vehicle {
       starter: cranking,
       exhaust: this.mode.exhaust + (1 - this.mode.exhaust) * smoothstep(0.35, 0.75, this.load),
       crackle: this.mode.crackle,
+      cold: this.coldBoost / COLD_RPM, // 1 just after starting, fades to 0
       shifting: !!this.shift,
       pedal: this.pedal,
     };
@@ -208,17 +212,20 @@ export class Vehicle {
   // ---- states ----
 
   _crank(dt) {
-    // Starter turns the engine at ~240 rpm, wobbling with each compression.
-    const wobble = 30 * Math.sin(this.stateTime * TWO_PI * 4.2);
-    this.rpm = approach(this.rpm, 240 + wobble, dt, 0.08);
-    this.load = this.stateTime > CATCH_TIME ? 0.55 : 0;
+    // The starter turns the engine at ~220 rpm; it slows on every compression
+    // stroke and speeds up between them (the "rrr-rrr-rrr").
+    this.crankPhase += (dt * Math.max(this.rpm, 120)) / 20;
+    const wobble = 55 * Math.sin(this.crankPhase * TWO_PI);
+    const spin = Math.min(1, this.stateTime / 0.12); // starter spinning up
+    this.rpm = approach(this.rpm, (220 + wobble) * spin, dt, 0.04);
+    this.load = this.stateTime > CATCH_TIME ? 0.7 : 0;
     this.gear = 1;
     this.neutral = true;
     if (this.stateTime >= CRANK_TIME) {
       this.state = 'running';
       this.stateTime = 0;
       this.flare = 1; // revs flare up after the engine catches
-      this.coldBoost = 380; // then settle to a slightly high idle that drops off
+      this.coldBoost = COLD_RPM; // then settle to a high cold idle that drops off
     }
   }
 
@@ -228,10 +235,12 @@ export class Vehicle {
     const a = Number.isFinite(input.accel) ? input.accel : 0;
     const rev = clamp(input.rev || 0, 0, 1);
 
-    this.flare = approach(this.flare, 0, dt, 0.4);
-    this.coldBoost = approach(this.coldBoost, 0, dt, 7);
+    this.flare = approach(this.flare, 0, dt, 0.45);
+    this.coldBoost = approach(this.coldBoost, 0, dt, 12);
     this.idlePhase += dt * 0.7;
-    const idleRpm = ENGINE.idleRpm + this.coldBoost + this.flare * 1050 + 12 * Math.sin(this.idlePhase * TWO_PI);
+    // A cold engine hunts a little more around its idle speed.
+    const hunt = (12 + 25 * (this.coldBoost / COLD_RPM)) * Math.sin(this.idlePhase * TWO_PI);
+    const idleRpm = ENGINE.idleRpm + this.coldBoost + this.flare * FLARE_RPM + hunt;
 
     // Driver demand from the real car's motion.
     const pedalRaw = clamp(pedalEstimate(v, a), -1.5, 1.5);
@@ -253,8 +262,10 @@ export class Vehicle {
       this.gear = 1;
       this.shift = null;
       target = idleRpm + rev * (ENGINE.limiterRpm + 300 - idleRpm);
-      rpmTau = target > this.rpm ? 0.2 : 0.45;
+      // Just after catching the revs shoot up fast, driven hard: the start-up bark.
+      rpmTau = target > this.rpm ? (this.flare > 0.5 ? 0.09 : 0.2) : 0.45;
       loadRaw = rev > 0.01 ? 0.25 + 0.75 * rev : this.rpm > idleRpm + 500 ? 0 : 0.1;
+      loadRaw = Math.max(loadRaw, 0.9 * Math.pow(this.flare, 1.5));
     } else {
       this._schedule(dt, v, decel);
       const geared = rpmAtSpeed(v, this.gear);

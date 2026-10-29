@@ -237,6 +237,7 @@ function tick() {
     starter: engine.starter ? 1 : 0,
     crackle: engine.crackle * POPS[settings.pops],
     exhaust: engine.exhaust,
+    cold: engine.cold,
   });
 
   latest = { engine, fused, stopped };

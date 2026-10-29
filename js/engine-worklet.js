@@ -270,7 +270,7 @@ export class FlatSixSynth {
     this.noise = new Noise(seed);
 
     // Targets set from the main thread, and their smoothed per-sample values.
-    this.target = { rpm: 0, load: 0, overrun: 0, cut: 0, ignition: 0, starter: 0, crackle: 0.8, exhaust: 1 };
+    this.target = { rpm: 0, load: 0, overrun: 0, cut: 0, ignition: 0, starter: 0, crackle: 0.8, exhaust: 1, cold: 0 };
     this.rpm = 0;
     this.load = 0;
     this.overrun = 0;
@@ -308,8 +308,9 @@ export class FlatSixSynth {
     this.tickDecay = Math.exp(-1 / (sr * 0.0004));
     this.tickHp = 0;
     this.whinePhase = 0;
-    this.starterPhase = 0;
-    this.starterBp = new Biquad().bandpass(sr, 900, 1.2);
+    // Cranking: low compression chug plus a quiet mechanical whirr.
+    this.chugLp = new Biquad().lowpass(sr, 170, 0.8);
+    this.starterBp = new Biquad().bandpass(sr, 340, 2.2);
 
     // Pops and bangs.
     this.popEnv = 0;
@@ -387,12 +388,16 @@ export class FlatSixSynth {
     let amp;
     if (combustion) {
       amp = (0.3 + 0.7 * Math.pow(load, 0.8)) * CYL_GAIN[cyl] * this.cylDrift[cyl];
-      // Off throttle the mixture burns unevenly: burble and the odd misfire.
+      // Off throttle (or still cold) the mixture burns unevenly: burble and
+      // the odd weak firing, which gives a cold start its lumpy idle.
       const burble = this.overrun * (1 - load);
-      amp *= 1 + n.next() * (0.05 + 0.5 * burble);
+      const cold = Math.min(1, t.cold) * (1 - rpmN);
+      amp *= 1 + n.next() * (0.05 + 0.5 * burble + 0.16 * cold);
+      if (cold > 0.2 && n.unit() < 0.05 * cold) amp *= 0.5;
       if (burble > 0.1 && n.unit() < 0.12 * burble) amp *= 0.15;
     } else {
-      amp = 0.07 * CYL_GAIN[cyl]; // just air being pumped (cranking, cuts, shutdown)
+      // Just air being pumped: a little louder while the starter cranks.
+      amp = (t.starter > 0.5 ? 0.14 : 0.07) * CYL_GAIN[cyl];
     }
     // The right bank's pulses arrive a little later and weaker (unequal
     // paths to the tailpipes): that is what makes the deep 1.5-order note.
@@ -570,11 +575,11 @@ export class FlatSixSynth {
       // --- starter motor ---
       let starter = 0;
       if (this.starter > 1e-3) {
-        this.starterPhase += (95 + rpm * 0.35) / sr;
-        if (this.starterPhase > 1) this.starterPhase -= 1;
-        const saw = 2 * this.starterPhase - 1;
-        const compression = 0.75 + 0.25 * sinCycles(this.cycle * 6);
-        starter = (this.starterBp.run(saw) * 0.45 + n.next() * 0.015) * this.starter * compression;
+        // Each compression stroke is a low "chug"; the starter whirrs underneath.
+        const stroke = Math.max(0, sinCycles(this.cycle * 6));
+        const chug = this.chugLp.run(stroke * stroke * stroke - 0.2);
+        const whirr = this.starterBp.run(n.next()) * (0.55 + 0.45 * (1 - stroke));
+        starter = (chug * 0.6 + whirr * 0.1) * this.starter;
       }
 
       // --- thump (bangs, and the engine settling at shutdown) ---
@@ -621,7 +626,7 @@ export class FlatSixSynth {
     for (const p of this.header) p.reset();
     for (const p of this.tail) p.reset();
     for (const bank of this.formants) for (const f of bank) f.reset();
-    for (const f of [...this.tone, ...this.bass, ...this.dc, this.plenum, this.runner, this.howl, this.airRush, this.starterBp]) f.reset();
+    for (const f of [...this.tone, ...this.bass, ...this.dc, this.plenum, this.runner, this.howl, this.airRush, this.starterBp, this.chugLp]) f.reset();
     this.popEnv = 0;
     this.thumpEnv = 0;
     this.bankEv[0].age = this.bankEv[1].age = 99;
