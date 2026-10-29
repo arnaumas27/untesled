@@ -263,7 +263,8 @@ export class Vehicle {
       this.shift = null;
       target = idleRpm + rev * (ENGINE.limiterRpm + 300 - idleRpm);
       // Just after catching the revs shoot up fast, driven hard: the start-up bark.
-      rpmTau = target > this.rpm ? (this.flare > 0.5 ? 0.09 : 0.2) : 0.45;
+      // Revving in neutral climbs smoothly (~3 s to the limiter); the start-up flare is quick.
+      rpmTau = target > this.rpm ? (this.flare > 0.5 ? 0.09 : rev > 0.01 ? 0.45 : 0.2) : 0.45;
       loadRaw = rev > 0.01 ? 0.25 + 0.75 * rev : this.rpm > idleRpm + 500 ? 0 : 0.1;
       loadRaw = Math.max(loadRaw, 0.9 * Math.pow(this.flare, 1.5));
     } else {

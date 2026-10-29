@@ -38,6 +38,30 @@ function setText(el, text) {
   if (el && el.textContent !== text) el.textContent = text;
 }
 
+const GMAX_KEY = 'untesled.gmax';
+
+function emptyGMax() {
+  return { sectors: [0, 0, 0, 0, 0, 0, 0, 0], accel: 0, brake: 0, left: 0, right: 0 };
+}
+
+function loadGMax() {
+  try {
+    const m = JSON.parse(localStorage.getItem(GMAX_KEY));
+    if (m && Array.isArray(m.sectors) && m.sectors.length === 8) return { ...emptyGMax(), ...m };
+  } catch {
+    /* nothing stored */
+  }
+  return emptyGMax();
+}
+
+function saveGMax(m) {
+  try {
+    localStorage.setItem(GMAX_KEY, JSON.stringify(m));
+  } catch {
+    /* private mode: maxima last for this visit only */
+  }
+}
+
 export class CarUI {
   constructor() {
     this.app = $('app');
@@ -55,8 +79,6 @@ export class CarUI {
       startLabel: $('startLabel'),
       startSub: $('startSub'),
       revBtn: $('revBtn'),
-      volume: $('volume'),
-      volumeOut: $('volumeOut'),
       wheelRear: $('wheelRear'),
       wheelFront: $('wheelFront'),
       carBody: $('carBody'),
@@ -74,17 +96,16 @@ export class CarUI {
       settingsBtn: $('settingsBtn'),
       simToggle: $('simToggle'),
       gDot: $('gDot'),
+      gMax: $('gMax'),
+      gValues: { accel: $('gAccel'), brake: $('gBrake'), left: $('gLeft'), right: $('gRight') },
+      pairAgainBtn: $('pairAgainBtn'),
       chips: { gps: $('chipGps'), phone: $('chipPhone'), input: $('chipInput') },
-      facts: {
-        mount: $('factMount'),
-        cal: $('factCal'),
-        rate: $('factRate'),
-        rtt: $('factRtt'),
-        relay: $('factRelay'),
-        device: $('phoneDevice'),
-      },
-      panels: { pair: $('panelPair'), phone: $('panelPhone'), gps: $('panelGps'), sim: $('panelSim') },
+      panels: { pair: $('panelPair'), g: $('panelG'), sim: $('panelSim') },
     };
+    this.gmax = loadGMax();
+    this.gmaxDirty = false;
+    this.gmaxSavedAt = 0;
+    this._drawGMax();
     this.handlers = {};
     this.units = 'kmh';
     this.wheelAngle = 0;
@@ -97,7 +118,7 @@ export class CarUI {
     this._fitTach();
   }
 
-  /** Register a callback: start, revDown, revUp, volume, setting, sim, newCode, gpsOnly, showQr, pairAgain. */
+  /** Register a callback: start, revDown, revUp, setting, sim, newCode, gpsOnly, pairAgain. */
   on(name, fn) {
     this.handlers[name] = fn;
   }
@@ -176,10 +197,10 @@ export class CarUI {
     });
     e.revBtn.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
-    e.volume.addEventListener('input', () => {
-      const v = Number(e.volume.value);
-      this.setVolume(v);
-      this._emit('volume', v);
+    $('gResetBtn').addEventListener('click', () => {
+      this.gmax = emptyGMax();
+      saveGMax(this.gmax);
+      this._drawGMax();
     });
 
     // Settings drawer.
@@ -198,7 +219,6 @@ export class CarUI {
     e.simToggle.addEventListener('change', () => this._emit('sim', e.simToggle.checked));
     $('newCodeBtn').addEventListener('click', () => this._emit('newCode'));
     $('gpsOnlyBtn').addEventListener('click', () => this._emit('gpsOnly'));
-    $('showQrBtn').addEventListener('click', () => this._emit('showQr'));
     $('pairAgainBtn').addEventListener('click', () => this._emit('pairAgain'));
 
     if (typeof ResizeObserver === 'function') {
@@ -256,14 +276,6 @@ export class CarUI {
     };
     setText(this.el.modeLabel, names[s.mode] || 'Sport');
     setText(this.el.modeHint, hints[s.mode] || '');
-    this.setVolume(s.volume);
-  }
-
-  setVolume(v) {
-    const e = this.el;
-    e.volume.value = String(v);
-    e.volume.style.setProperty('--fill', `${v}%`);
-    setText(e.volumeOut, String(Math.round(v)));
   }
 
   /** Show the pairing QR, the code and the address for typing it by hand. */
@@ -317,14 +329,49 @@ export class CarUI {
     if (el.dataset.tone !== tone) el.dataset.tone = tone;
   }
 
-  setPhoneFacts({ device, mount, calibration, rate, rtt, relay }) {
-    const f = this.el.facts;
-    setText(f.device, device || '');
-    setText(f.mount, mount);
-    setText(f.cal, calibration);
-    setText(f.rate, rate);
-    setText(f.rtt, rtt);
-    setText(f.relay, relay);
+  /** Offer "Pair a phone" on the G-meter panel when no phone is connected. */
+  setPairOffer(show) {
+    if (this.el.pairAgainBtn.hidden === show) this.el.pairAgainBtn.hidden = !show;
+  }
+
+  // ---------------------------------------------------------------------
+  // G-meter with remembered maxima
+  // ---------------------------------------------------------------------
+
+  /** Record a reading: fwd = forward acceleration, right = to the right (g). */
+  _trackG(fwd, right) {
+    const m = this.gmax;
+    const mag = Math.hypot(fwd, right);
+    if (mag < 0.05) return;
+    let changed = false;
+    // Eight directions, so the stored maxima draw a shape on the meter.
+    const sector = (Math.round(Math.atan2(right, fwd) / (Math.PI / 4)) + 8) % 8;
+    if (mag > m.sectors[sector]) {
+      m.sectors[sector] = mag;
+      changed = true;
+    }
+    for (const [key, val] of [['accel', fwd], ['brake', -fwd], ['right', right], ['left', -right]]) {
+      if (val > m[key]) {
+        m[key] = val;
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.gmaxDirty = true;
+      this._drawGMax();
+    }
+  }
+
+  _drawGMax() {
+    const m = this.gmax;
+    const R = 56; // svg units per 1 g
+    const pts = m.sectors.map((g, i) => {
+      const a = (i * Math.PI) / 4; // 0 = forward (up), clockwise
+      const r = Math.min(g, 1.15) * R;
+      return `${(Math.sin(a) * r).toFixed(1)},${(-Math.cos(a) * r).toFixed(1)}`;
+    });
+    this.el.gMax.setAttribute('points', pts.join(' '));
+    for (const key of ['accel', 'brake', 'left', 'right']) setText(this.el.gValues[key], m[key].toFixed(2));
   }
 
   // ---------------------------------------------------------------------
@@ -410,13 +457,19 @@ export class CarUI {
       e.flame.style.opacity = '0';
     }
 
-    // G-meter (phone panel).
-    if (!e.panels.phone.hidden) {
-      const g = 9.81;
-      const x = Math.max(-1, Math.min(1, -s.lateral / (0.8 * g))) * 50;
-      const y = Math.max(-1, Math.min(1, -s.accel / (0.8 * g))) * 50;
-      e.gDot.setAttribute('cx', x.toFixed(1));
-      e.gDot.setAttribute('cy', y.toFixed(1));
+    // G-meter: live dot (up = accelerating, left = turning left) and maxima.
+    if (!e.panels.g.hidden) {
+      const fwd = s.accel / 9.81;
+      const right = -s.lateral / 9.81;
+      const clampG = (v) => Math.max(-1.15, Math.min(1.15, v));
+      e.gDot.setAttribute('cx', (clampG(right) * 56).toFixed(1));
+      e.gDot.setAttribute('cy', (-clampG(fwd) * 56).toFixed(1));
+      if (s.trackG) this._trackG(fwd, right);
+      if (this.gmaxDirty && this.time - this.gmaxSavedAt > 2) {
+        saveGMax(this.gmax);
+        this.gmaxDirty = false;
+        this.gmaxSavedAt = this.time;
+      }
     }
   }
 

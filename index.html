@@ -16,7 +16,6 @@
     <header class="topbar">
       <div class="brand">
         <span class="wordmark">untesled</span>
-        <span class="livery" aria-hidden="true"><i></i><i></i><i></i></span>
       </div>
       <ul class="chips" aria-label="Connections">
         <li class="chip" id="chipGps" data-state="idle"><i aria-hidden="true"></i><b>GPS</b><span>Off</span></li>
@@ -30,7 +29,7 @@
 
     <main class="cockpit">
 
-      <!-- Left: the car, the start button, volume -->
+      <!-- Left: the car and the start button -->
       <section class="zone zone-car" aria-label="Engine">
         <figure class="car-art" aria-hidden="true">
           <svg viewBox="-110 18 1125 330" id="carSvg">
@@ -162,11 +161,6 @@
           </button>
           <div class="side-controls">
             <button class="rev-btn" id="revBtn" type="button" disabled>Hold to rev</button>
-            <label class="volume">
-              <span class="volume-label">Volume</span>
-              <input type="range" id="volume" min="0" max="100" value="70" step="1" aria-label="Volume">
-              <output id="volumeOut" for="volume">70</output>
-            </label>
           </div>
         </div>
       </section>
@@ -211,31 +205,29 @@
           <button class="link-btn" id="gpsOnlyBtn" type="button">Drive without a phone</button>
         </div>
 
-        <div class="panel panel-phone" id="panelPhone" hidden>
-          <h2>Phone <span class="device" id="phoneDevice"></span></h2>
-          <div class="gmeter" aria-hidden="true">
-            <svg viewBox="-60 -60 120 120">
-              <circle r="56" class="g-ring"/><circle r="28" class="g-ring"/>
-              <line x1="-56" y1="0" x2="56" y2="0" class="g-axis"/><line x1="0" y1="-56" x2="0" y2="56" class="g-axis"/>
-              <circle r="7" id="gDot" class="g-dot"/>
+        <div class="panel panel-g" id="panelG" hidden>
+          <div class="gmeter">
+            <svg viewBox="-66 -66 132 132" aria-label="G-meter">
+              <circle r="56" class="g-ring"/>
+              <circle r="28" class="g-ring g-ring-half"/>
+              <line x1="-62" y1="0" x2="62" y2="0" class="g-axis"/>
+              <line x1="0" y1="-62" x2="0" y2="62" class="g-axis"/>
+              <polygon id="gMax" class="g-max" points="0,0"/>
+              <text x="3" y="-30" class="g-tick">0.5</text>
+              <text x="3" y="-58" class="g-tick">1.0 g</text>
+              <circle r="5.5" id="gDot" class="g-dot"/>
             </svg>
-            <span class="g-label g-top">Accelerate</span>
-            <span class="g-label g-bottom">Brake</span>
           </div>
-          <dl class="facts">
-            <div><dt>Position</dt><dd id="factMount">–</dd></div>
-            <div><dt>Calibration</dt><dd id="factCal">–</dd></div>
-            <div><dt>Motion data</dt><dd id="factRate">–</dd></div>
-            <div><dt>Round trip</dt><dd id="factRtt">–</dd></div>
-            <div><dt>Relay</dt><dd id="factRelay">–</dd></div>
+          <dl class="gmax">
+            <div><dt>Accel</dt><dd id="gAccel">0.00</dd></div>
+            <div><dt>Brake</dt><dd id="gBrake">0.00</dd></div>
+            <div><dt>Left</dt><dd id="gLeft">0.00</dd></div>
+            <div><dt>Right</dt><dd id="gRight">0.00</dd></div>
           </dl>
-          <button class="link-btn" id="showQrBtn" type="button">Pair a different phone</button>
-        </div>
-
-        <div class="panel panel-gps" id="panelGps" hidden>
-          <h2>Driving on GPS</h2>
-          <p class="panel-lead">The engine follows the car's GPS. It reacts about a second late; a paired phone makes it instant.</p>
-          <button class="link-btn" id="pairAgainBtn" type="button">Pair a phone</button>
+          <div class="g-actions">
+            <button class="link-btn" id="gResetBtn" type="button">Reset max G</button>
+            <button class="link-btn" id="pairAgainBtn" type="button" hidden>Pair a phone</button>
+          </div>
         </div>
 
         <div class="panel panel-sim" id="panelSim" hidden>

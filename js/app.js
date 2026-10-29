@@ -24,7 +24,7 @@ import { CarUI } from './ui.js';
 
 const STORE_KEY = 'untesled.settings';
 const CODE_KEY = 'untesled.code';
-const DEFAULTS = { mode: 'sport', pops: 'wild', units: 'kmh', volume: 70, sim: false, gpsOnly: false };
+const DEFAULTS = { mode: 'sport', pops: 'wild', units: 'kmh', sim: false, gpsOnly: false };
 const POPS = { off: 0, mild: 0.5, wild: 1 };
 
 function load(key, fallback) {
@@ -65,9 +65,8 @@ const brokers = resolveBrokers();
 const link = new CarLink({ code, brokers, onMotion: (sample) => fusion.addPhone(sample) });
 
 let revHeld = false;
+let revLevel = 0; // the REV button opens the throttle gradually, like a foot would
 let audioError = null;
-let showQrAgain = false; // "Pair a different phone" pressed
-let lastPhoneDevice = null;
 let latest = { engine: vehicle.output(), fused: fusion.state(performance.now()) };
 
 audio.onPop = (amp) => ui.pop(amp);
@@ -112,7 +111,7 @@ function renderPairing() {
 
 function applySettings() {
   vehicle.setMode(settings.mode);
-  audio.setVolume(settings.volume / 100);
+  audio.setVolume(1); // full volume: adjust it with the car's own volume control
   fusion.setSim(settings.sim);
   if (!settings.sim) sim.reset();
   ui.applySettings(settings);
@@ -130,18 +129,11 @@ ui.on('sim', (on) => {
   applySettings();
 });
 
-ui.on('volume', (v) => {
-  settings.volume = v;
-  audio.setVolume(v / 100);
-  save(STORE_KEY, settings);
-});
-
 ui.on('newCode', () => {
   code = newSessionCode();
   save(CODE_KEY, code);
   link.setCode(code);
   renderPairing();
-  showQrAgain = false;
   settings.gpsOnly = false;
   applySettings();
 });
@@ -156,10 +148,6 @@ ui.on('pairAgain', () => {
   applySettings();
 });
 
-ui.on('showQr', () => {
-  showQrAgain = true;
-  refreshStatus();
-});
 
 // ---------------------------------------------------------------------------
 // Engine start / stop, rev button, keyboard
@@ -226,7 +214,10 @@ function tick() {
   }
   const fused = fusion.update(now);
   const stopped = fused.speed < 0.6;
-  const engine = vehicle.update(dt, { speed: fused.speed, accel: fused.accel, rev: revHeld && stopped ? 1 : 0 });
+  // Holding REV squeezes the throttle open over about a second; letting go shuts it at once.
+  const revTarget = revHeld && stopped ? 1 : 0;
+  revLevel += (revTarget - revLevel) * (1 - Math.exp(-dt / (revTarget > revLevel ? 0.9 : 0.06)));
+  const engine = vehicle.update(dt, { speed: fused.speed, accel: fused.accel, rev: revLevel });
 
   audio.setParams({
     rpm: engine.rpm,
@@ -260,6 +251,7 @@ function frame(now) {
     accel: fused.accel,
     lateral: fused.lateral,
     canRev: vehicle.running && !!stopped,
+    trackG: ['phone+gps', 'phone', 'gps'].includes(fused.source),
   });
   requestAnimationFrame(frame);
 }
@@ -296,17 +288,12 @@ function refreshStatus() {
   const fused = fusion.state(now);
   const engineOn = vehicle.on;
 
-  if (p.device && p.device !== lastPhoneDevice) {
-    lastPhoneDevice = p.device;
-    showQrAgain = false;
-  }
-
   // Panel on the right.
   let panel = 'pair';
   if (settings.sim) panel = 'sim';
-  else if (p.connected && !showQrAgain) panel = 'phone';
-  else if (settings.gpsOnly && !showQrAgain) panel = 'gps';
+  else if (p.connected || settings.gpsOnly) panel = 'g';
   ui.showPanel(panel);
+  ui.setPairOffer(panel === 'g' && !p.connected);
   ui.setRelay(ls.relay);
 
   // Chips.
@@ -323,25 +310,6 @@ function refreshStatus() {
   };
   ui.setChips({ gps: gpsChip(g), phone: phoneChip, input: inputs[fused.source] || inputs.none });
 
-  if (p.connected) {
-    const cal = {
-      ok: 'Calibrated',
-      guess: 'Ready; fine-tunes as you drive',
-      learning: 'Learning; drive off normally',
-      none: '–',
-      sim: '–',
-    };
-    const tilt = fused.tilt != null ? `, ${Math.round(fused.tilt)}°` : '';
-    const mounts = { dock: `Tesla dock${tilt}`, upright: `Upright holder${tilt}`, flat: `Lying flat${tilt}` };
-    ui.setPhoneFacts({
-      device: p.device,
-      mount: p.streaming && fused.mount ? mounts[fused.mount] : '–',
-      calibration: p.streaming ? cal[fused.calibration] : 'Waiting for motion data',
-      rate: p.streaming ? `${Math.round(p.hz)} per second` : '–',
-      rtt: p.rtt != null ? `${Math.round(p.rtt)} ms` : '–',
-      relay: p.relay || '–',
-    });
-  }
 
   // One message, most important first.
   let msg;

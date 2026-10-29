@@ -1,6 +1,6 @@
 /* ==========================================================================
    Untesled — shared styles for the car page (index.html) and phone page.
-   Dark cockpit: Martini-livery navy, sky blue for live data, red for the
+   Dark cockpit: racing navy, sky blue for live data, red for the
    engine. Michroma for instruments, Barlow Semi Condensed for everything else.
    Kept to widely supported CSS so older in-car Chromium builds render it.
    ========================================================================== */
@@ -125,7 +125,7 @@ kbd {
   background: var(--ink-2);
 }
 
-/* ---------- shared bits: wordmark, livery, buttons ---------- */
+/* ---------- shared bits: wordmark, buttons ---------- */
 
 .brand {
   display: flex;
@@ -139,23 +139,6 @@ kbd {
   letter-spacing: 0.06em;
   color: var(--text);
 }
-
-.livery {
-  display: inline-flex;
-  gap: 4px;
-  transform: skewX(-24deg);
-}
-
-.livery i {
-  display: block;
-  width: 10px;
-  height: 20px;
-  border-radius: 2px;
-}
-
-.livery i:nth-child(1) { background: var(--navy); }
-.livery i:nth-child(2) { background: var(--sky); }
-.livery i:nth-child(3) { background: var(--red); }
 
 .icon-btn {
   display: grid;
@@ -375,7 +358,7 @@ kbd {
   background: var(--line);
 }
 
-/* ---------- controls: start button, rev, volume ---------- */
+/* ---------- controls: start button, rev ---------- */
 
 .controls {
   display: flex;
@@ -496,72 +479,6 @@ kbd {
   border-color: var(--red);
   background: #2a1520;
   box-shadow: 0 0 22px var(--red-glow);
-}
-
-.volume {
-  display: grid;
-  grid-template-columns: auto 1fr 3ch;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-}
-
-.volume-label {
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.volume output {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-
-input[type='range'] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 44px;
-  margin: 0;
-  background: transparent;
-  touch-action: none;
-}
-
-input[type='range']::-webkit-slider-runnable-track {
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(to right, var(--sky) var(--fill, 70%), var(--ink-3) var(--fill, 70%));
-}
-
-input[type='range']::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 34px;
-  height: 34px;
-  margin-top: -13px;
-  border: 3px solid var(--ink-0);
-  border-radius: 50%;
-  background: var(--text);
-  box-shadow: 0 0 0 2px var(--sky);
-}
-
-input[type='range']::-moz-range-track {
-  height: 8px;
-  border-radius: 4px;
-  background: var(--ink-3);
-}
-
-input[type='range']::-moz-range-progress {
-  height: 8px;
-  border-radius: 4px;
-  background: var(--sky);
-}
-
-input[type='range']::-moz-range-thumb {
-  width: 30px;
-  height: 30px;
-  border: 3px solid var(--ink-0);
-  border-radius: 50%;
-  background: var(--text);
 }
 
 /* ---------- tachometer ---------- */
@@ -807,10 +724,15 @@ input[type='range']::-moz-range-thumb {
   font-size: 0.8em;
 }
 
+.panel-g {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
 .gmeter {
-  position: relative;
-  align-self: center;
-  width: clamp(150px, 13vw, 200px);
+  width: clamp(220px, 24vw, 340px);
 }
 
 .gmeter svg {
@@ -820,44 +742,52 @@ input[type='range']::-moz-range-thumb {
 }
 
 .g-ring { fill: none; stroke: var(--ink-3); stroke-width: 1.2; }
+.g-ring-half { stroke-dasharray: 2 3; }
 .g-axis { stroke: var(--ink-3); stroke-width: 1; }
+.g-max {
+  fill: rgba(62, 182, 234, 0.14);
+  stroke: var(--sky);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  opacity: 0.8;
+}
+.g-tick { fill: var(--faint); font-size: 6px; font-weight: 600; }
 .g-dot { fill: var(--sky); }
 
-.g-label {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--faint);
-}
-
-.g-top { top: -20px; }
-.g-bottom { bottom: -20px; }
-
-.facts {
+.gmax {
   display: grid;
-  gap: 6px;
-  margin: 10px 0 0;
-}
-
-.facts div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.facts dt {
-  color: var(--muted);
-}
-
-.facts dd {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
   margin: 0;
-  font-weight: 600;
-  text-align: right;
+}
+
+.gmax div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.gmax dt {
+  font-size: 13px;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.gmax dd {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.g-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
 }
 
 /* ---------- simulator pedals ---------- */
@@ -1212,7 +1142,7 @@ input[type='range']::-moz-range-thumb {
   }
 
   .gmeter {
-    width: min(160px, 22vh);
+    width: min(240px, 34vh);
   }
 }
 

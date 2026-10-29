@@ -62,8 +62,18 @@ six-character code shown under the QR code. The phone remembers the code, so
 next time just open the page again. The car keeps its code between visits
 too; use **Settings › New code** if you want a fresh one.
 
-While stopped, hold **Hold to rev** to blip the engine in neutral and bounce
-it off the limiter.
+While stopped, hold **Hold to rev** to rev the engine in neutral: the revs
+climb smoothly, like a foot pressing down, and reach the limiter after about
+four seconds. Let go and they drop back to idle.
+
+Once a phone is paired (or you chose to drive without one), the right side
+shows the **G-meter**: a live dot for the current acceleration, braking and
+cornering force, and an outline of the highest G reached in each direction,
+with the maximum acceleration, braking, left and right values underneath.
+The maxima are kept between visits; **Reset max G** clears them.
+
+Sound plays at full volume; turn it up or down with the car's own volume
+control.
 
 ### Permissions
 
@@ -243,11 +253,11 @@ The synth uses about 2 % of one desktop CPU core.
 | `phone.html` | Phone screen: pairing and motion streaming. |
 | `style.css` | Styles for both pages. |
 | `js/app.js` | Car page: wires sensors, fusion, vehicle, audio, link and UI together. |
-| `js/ui.js` | Car screen rendering (tach, readouts, animated car, panels, settings). |
+| `js/ui.js` | Car screen rendering (tach, readouts, animated car, G-meter with saved maxima, panels, settings). |
 | `js/vehicle.js` | Virtual GT3 drivetrain. |
 | `js/fusion.js` | GPS + phone sensor fusion and automatic calibration. |
 | `js/engine-worklet.js` | The flat-six synthesizer (AudioWorklet). |
-| `js/audio.js` | Web Audio graph, volume, limiter, ScriptProcessor fallback. |
+| `js/audio.js` | Web Audio graph, limiter, ScriptProcessor fallback. |
 | `js/gps.js` | Geolocation tracking and speed. |
 | `js/simulator.js` | Virtual pedals and a simple EV model. |
 | `js/link.js` | Pairing protocol over MQTT: codes, discovery, failover, heartbeats. |
@@ -288,7 +298,7 @@ there, the console object above is the place to look.
 
 - **No sound.**
   - Tap **Start**. Browsers only allow sound after a tap.
-  - Check the volume slider and the car's media volume.
+  - Check the car's media volume.
   - If the browser paused audio after you switched apps, tap the engine
     button once to resume.
 - **"Location is blocked".** Allow location for the site in the Tesla
@@ -315,7 +325,7 @@ there, the console object above is the place to look.
   It passes through public relays, under a topic named after your pairing
   code; for privacy, use your own broker (see *Configuration*).
 - Set the phone up before driving, and never handle it while driving.
-- Keep the volume at a level where you can still hear what's around you,
+- Keep the car's volume at a level where you can still hear what's around you,
   including emergency vehicles. Synthetic engine sound may be restricted in
   some places; check your local rules.
 
