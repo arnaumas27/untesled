@@ -141,10 +141,6 @@ export const MOTO = {
   },
 };
 
-/** The flat-six, under its historical name. */
-export const ENGINE = FLAT6;
-export const MODES = FLAT6.modes;
-
 /** Engine RPM for road speed `v` (m/s) in `gear` (1-based) with the clutch locked. */
 export function rpmAtSpeed(v, gear, spec = FLAT6) {
   const wheelRps = v / (TWO_PI * spec.wheelRadius);

@@ -1,9 +1,21 @@
 {
   "name": "untesled",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
-  "description": "Flat-six engine sound for the Tesla browser, driven by GPS and your phone's accelerometer.",
+  "description": "Engine sounds for the Tesla browser (flat six, V8, superbike, jet, space freighter, horse carriage), synthesized live and driven by GPS and your phone's accelerometer.",
+  "homepage": "https://github.com/arnaumas27/untesled#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arnaumas27/untesled.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arnaumas27/untesled/issues"
+  },
+  "keywords": ["tesla", "engine-sound", "web-audio", "audioworklet", "synthesizer", "pwa"],
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "node --test",
     "serve": "python3 -m http.server 8080"

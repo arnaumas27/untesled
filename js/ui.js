@@ -1,6 +1,6 @@
 /**
- * ui.js — everything on the car screen: the dial, readouts, the animated
- * artwork, status chips and messages, pairing / G-meter / simulator panels and
+ * ui.js — everything on the car screen: the dial, readouts, the animated neon
+ * sign, status chips and messages, pairing / G-meter / simulator panels and
  * the settings drawer. It only displays state and reports taps; app.js decides.
  */
 
@@ -135,14 +135,14 @@ export class CarUI {
   // Construction
   // ---------------------------------------------------------------------
 
-  /** One button per sound in Settings, each with a small drawing. */
+  /** One button per sound in Settings, each with its neon icon. */
   _buildSoundPicker() {
     this.el.soundGrid.innerHTML = SOUNDS.map(
       (snd) => `<button type="button" data-value="${snd.id}" aria-pressed="false">${iconSvg(snd.id, 'thumb-icon')}<span>${snd.name}</span></button>`,
     ).join('');
   }
 
-  /** Switch the dial, labels and artwork to a sound from sounds.js. */
+  /** Switch the dial, labels and neon sign to a sound from sounds.js. */
   setSound(sound) {
     if (this.sound === sound) return;
     this.sound = sound;

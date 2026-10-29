@@ -1,28 +1,65 @@
 # Untesled
 
-An engine for your Tesla. Untesled is a static web app that runs in the
+[![Tests](https://github.com/arnaumas27/untesled/actions/workflows/test.yml/badge.svg)](https://github.com/arnaumas27/untesled/actions/workflows/test.yml)
+
+**An engine for your Tesla.** Untesled is a static web app that runs in the
 Tesla's browser and plays a synthesized engine through the car's speakers:
-by default a 4.0-litre, 9,000 rpm, GT3-style flat six, or, if you prefer, a
-70s V8, a superbike, a jet engine, a sci-fi space freighter or a horse and
-carriage. It reacts to how you actually drive: the car's GPS gives the speed,
-and your phone's accelerometer gives an instant throttle.
+a 9,000 rpm GT3-style flat six by default, or a 70s V8, a superbike, a jet
+engine, a sci-fi space freighter or a horse and carriage. It reacts to how
+you actually drive: the car's GPS gives the speed, and your phone's
+accelerometer gives an instant throttle.
 
-![Car screen while accelerating, phone in the Tesla dock: 3rd gear, 125 km/h, 7,000 rpm](docs/screenshot-driving.png)
-
-| Pairing (first screen) | Phone, connected |
-| --- | --- |
-| ![Pairing screen with QR code](docs/screenshot-pairing.png) | ![Phone page connected to the car](docs/screenshot-phone.png) |
+![The car screen at 86 km/h in 2nd gear, 6,450 rpm, with the G-meter's saved maxima, next to the paired phone streaming its motion](docs/hero.png)
 
 - **Six sounds, no audio files.** Every sound is synthesized live in the
   browser: firing pulses, exhaust pipes, intake howl, shift cuts, blips, pops
-  and bangs, a turbofan spooling up, hooves on the road. Each sound has its
-  own neon sign and its own dial.
+  and bangs, a turbofan spooling up, hooves on the road. Each one has its own
+  neon sign and its own dial.
 - **Scan and go.** The car shows a QR code. Scan it with your phone camera,
   tap Connect, done. It works on any network, with no app and no account.
 - **Works without the phone, too.** On GPS alone the engine follows your
   speed about a second late. The phone makes it instant.
+- **Made for the car's screen.** Big touch targets, a layout for the
+  near-square window the Tesla browser has while driving, and a G-meter that
+  remembers your best numbers.
 - **Plain HTML, CSS and JavaScript.** No framework, no build step, no runtime
   dependencies. Deploy the folder as it is.
+
+## Contents
+
+- [The sounds](#the-sounds)
+- [How it works](#how-it-works)
+- [Use it in the car](#use-it-in-the-car)
+- [Publish it](#publish-it)
+- [Configuration](#configuration)
+- [Under the hood](#under-the-hood)
+- [Project files](#project-files)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Privacy and safety](#privacy-and-safety)
+- [Credits](#credits)
+
+## The sounds
+
+![The six neon signs: 911 GT3, Mustang '70, Superbike, CFM56, Hyperdrive and Horse carriage](docs/screenshot-sounds.png)
+
+Each sound has a neon sign: a line icon and the vehicle's name in neon-tube
+lettering. Like a real sign, its tubes stay visible but dark while the engine
+is off. It strikes with a stutter when you start, glows a little brighter
+with the throttle, flickers with every exhaust pop and fades out when you
+stop. The freighter's sign streaks off into hyperspace, and the horse trots
+with its stride.
+
+| Sound | What you hear | The dial | Hold the button (standing still) |
+| --- | --- | --- | --- |
+| **Flat six** (default) | Porsche 911 GT3: 4.0 boxer to 9,000 rpm, 7-speed PDK, blips, pops and bangs. | rpm | Revs in neutral to the limiter. |
+| **Classic V8** | A 70s muscle car: lumpy, burbling V8 idle, lazy 3-speed automatic with a slipping torque converter, no rev limiter, it just runs out of breath at 5,800 rpm. | rpm | Revs in neutral. |
+| **Superbike** | 1000 cc inline-four screaming to 14,000 rpm, 6-speed with quickshifter, autoblipper and crackle. | rpm | Revs in neutral. |
+| **Jet engine** | CFM56-style turbofan: air-starter whine, light-off, slow spool from idle, fan whine and the takeoff buzz-saw and roar. Brake hard from speed and the thrust reversers deploy. Stopping winds the spools down for a long while. | N1 % | Spools to takeoff thrust. |
+| **Space freighter** | Film sci-fi starship drive (think Star Wars, Star Trek): a deep, pulsing warp-core drone, a gritty metallic roar, a swirling flanger and a big spacey reverb. Sometimes the hyperdrive won't catch at the first attempt. | power % | Hold for about three seconds at full power to **jump to hyperspace**. |
+| **Horse carriage** | Clip-clop! Walk, trot, canter and gallop follow your speed, with iron tyres rumbling, wooden creaks, harness bells, the brake squealing when you stop hard, a whinny when you set off and a snort when you stop. Floor it and the coachman cracks the whip. | strides per minute | The horse paws the ground, then rears up and whinnies. |
+
+Pick one in **Settings › Sound**.
 
 ## How it works
 
@@ -36,8 +73,8 @@ flowchart LR
 ```
 
 1. The phone streams its motion through a free public MQTT relay to the car.
-   Nothing to host: the site is static, and both sides connect to several
-   relays at once and use whichever answers first.
+   There is nothing to host: the site is static, and both sides connect to
+   several relays at once and use whichever answers first.
 2. The car fuses that with its own GPS. GPS is the truth for speed, and the
    phone is the truth for acceleration (it reacts within about 0.1–0.2 s).
 3. A virtual drivetrain (for the flat six, a 7-speed dual-clutch gearbox)
@@ -45,6 +82,8 @@ flowchart LR
    synth.
 
 ## Use it in the car
+
+![Pairing screen: the engine idles while the QR code waits for a phone](docs/screenshot-pairing.png)
 
 1. Open your site (for example `https://yourdomain.com`) in the Tesla browser.
 2. Allow **location** when the browser asks. That is how the engine knows
@@ -59,7 +98,7 @@ flowchart LR
       tray, about 45°), any way round, and keep the page open with the screen
       on. It charges while it streams. A dash or vent holder works too.
 5. Drive. The phone calibrates itself in the first few seconds of driving
-   (see *How the phone is understood*).
+   (see [How the phone is understood](#how-the-phone-is-understood)).
 
 No camera? Open `yourdomain.com/phone.html` on the phone and type the
 six-character code shown under the QR code. The phone remembers the code, so
@@ -70,9 +109,7 @@ While stopped, hold **Hold to rev** to rev the engine in neutral: the revs
 climb smoothly, like a foot pressing down, and reach the limiter after about
 four seconds. Let go and they drop back to idle. With the other sounds the
 same button spools the jet to takeoff thrust, sends the freighter to
-hyperspace or makes the horse rear up (see *The sounds*).
-
-Pick the sound in **Settings › Sound**.
+hyperspace or makes the horse rear up (see [The sounds](#the-sounds)).
 
 Once a phone is paired (or you chose to drive without one), the right side
 shows the **G-meter**: a live dot for the current acceleration, braking and
@@ -83,11 +120,17 @@ The maxima are kept between visits; **Reset max G** clears them.
 Sound plays at full volume; turn it up or down with the car's own volume
 control.
 
-The screen adapts to the browser window. While driving, the Tesla browser
-is nearly square (about 1180 × 880 on a Model 3/Y): the dial then takes the
-left side with Start and Rev under it, and a compact neon sign sits above
-the G-meter (or the pairing code) on the right. Parked in full screen, the
-sign, the dial and the panel sit side by side.
+### On the move
+
+| Waiting for a phone | Driving |
+| --- | --- |
+| ![Near-square layout with the pairing QR code](docs/screenshot-square-pairing.png) | ![Near-square layout while driving: the dial on the left, the sign and the G-meter on the right](docs/screenshot-square-driving.png) |
+
+The screen adapts to the browser window. While driving, the Tesla browser is
+nearly square (about 1180 × 880 on a Model 3/Y): the dial then takes the
+left side with Start and Rev under it, and a compact neon sign sits above the
+G-meter (or the pairing code) on the right. Parked in full screen, the sign,
+the dial and the panel sit side by side.
 
 ### Permissions
 
@@ -102,9 +145,10 @@ published with SSL.
 
 ### Settings
 
-- **Sound**: one of the six sounds below. The neon sign, the dial and the
-  readouts change with it. Switching while the engine runs restarts it as
-  the new one.
+![Settings drawer: the six sounds, drive mode, pops and bangs, units and the simulator](docs/screenshot-settings.png)
+
+- **Sound**: one of the six sounds. The neon sign, the dial and the readouts
+  change with it. Switching while the engine runs restarts it as the new one.
 - **Drive mode**:
   - *Comfort*: early upshifts and a quieter exhaust.
   - *Sport*: holds gears, blips on downshifts, crackles when you lift.
@@ -119,28 +163,6 @@ published with SSL.
   instant torque and one-pedal regen. Try everything without a car or a phone.
 - **Pairing code**: shows the code and lets you make a new one.
 
-## The sounds
-
-![The six sounds, each with its own neon sign](docs/screenshot-sounds.png)
-
-Each sound shows a neon sign: a line icon and the vehicle's name in neon-tube
-lettering. Like a real sign, its tubes stay visible but dark while the engine
-is off; it strikes with a stutter when you start, glows a little brighter
-with the throttle, flickers with every exhaust pop and fades out when you
-stop. The freighter's sign streaks off into hyperspace, and the horse trots
-with its stride.
-
-| Sound | What you hear | The dial | Hold the button (standing still) |
-| --- | --- | --- | --- |
-| **Flat six** (default) | Porsche 911 GT3: 4.0 boxer to 9,000 rpm, 7-speed PDK, blips, pops and bangs. | rpm | Revs in neutral to the limiter. |
-| **Classic V8** | A 70s muscle car: lumpy, burbling V8 idle, lazy 3-speed automatic with a slipping torque converter, no rev limiter, it just runs out of breath at 5,800 rpm. | rpm | Revs in neutral. |
-| **Superbike** | 1000 cc inline-four screaming to 14,000 rpm, 6-speed with quickshifter, autoblipper and crackle. | rpm | Revs in neutral. |
-| **Jet engine** | CFM56-style turbofan: air-starter whine, light-off, slow spool from idle, fan whine and the takeoff buzz-saw and roar. Brake hard from speed and the thrust reversers deploy. Stopping winds the spools down for a long while. | N1 % | Spools to takeoff thrust. |
-| **Space freighter** | Film sci-fi starship drive (think Star Wars, Star Trek): a deep, pulsing warp-core drone, a gritty metallic roar, a swirling flanger and a big spacey reverb. Sometimes the hyperdrive won't catch at the first attempt. | power % | Hold for about three seconds at full power to **jump to hyperspace**. |
-| **Horse carriage** | Clip-clop! Walk, trot, canter and gallop follow your speed, with iron tyres rumbling, wooden creaks, harness bells, the brake squealing when you stop hard, a whinny when you set off and a snort when you stop. Floor it and the coachman cracks the whip. | strides per minute | The horse paws the ground, then rears up and whinnies. |
-
-![Settings: pick a sound](docs/screenshot-settings.png)
-
 ## Publish it
 
 The site is the repository root: `index.html` (car), `phone.html` (phone),
@@ -149,9 +171,7 @@ The site is the repository root: `index.html` (car), `phone.html` (phone),
 ### Hostinger, deployed from GitHub
 
 1. In **hPanel › Websites › Manage › Advanced › GIT**, create a repository:
-   - Repository: `https://github.com/arnaumas27/untesled.git`. For a private
-     repository, add the SSH key Hostinger shows to GitHub as a deploy key
-     and use `git@github.com:arnaumas27/untesled.git`.
+   - Repository: `https://github.com/arnaumas27/untesled.git` (or your fork).
    - Branch: the one you want to publish, for example `main`.
    - Directory: leave empty to deploy into `public_html`, which must be empty.
 2. Click **Create**, then **Deploy**.
@@ -163,11 +183,11 @@ The site is the repository root: `index.html` (car), `phone.html` (phone),
    also sets the right file types and makes updates show up immediately.
 5. Open `https://yourdomain.com` in the Tesla browser.
 
-### GitHub Pages (alternative)
+### GitHub Pages
 
 **Settings › Pages › Deploy from a branch**, then pick the branch and
-`/ (root)`. The site appears at `https://arnaumas27.github.io/untesled/`
-with HTTPS already on. (The `.htaccess` file is simply ignored there.)
+`/ (root)`. The site appears at `https://<user>.github.io/untesled/` with
+HTTPS already on. (The `.htaccess` file is simply ignored there.)
 
 ### On your computer
 
@@ -199,7 +219,9 @@ Everything lives in `js/config.js`:
   `?broker=wss://host:port/path` to the car page URL; the QR code passes it on
   to the phone.
 
-## The sound engine
+## Under the hood
+
+### The sound engine
 
 `js/engine-worklet.js` runs in an AudioWorklet on its own audio thread. A
 ScriptProcessor fallback runs the same code on browsers without worklets
@@ -207,7 +229,7 @@ ScriptProcessor fallback runs the same code on browsers without worklets
 when you switch. The engines share one synth, `js/synth-piston.js`, voiced
 three ways (flat six, V8, inline-four); the others have their own files.
 
-### The engines
+#### The engines
 
 For the flat six, per sample:
 
@@ -229,8 +251,8 @@ For the flat six, per sample:
   delay line with low resonances. Short tailpipe combs add the metallic
   edge.
 - **Body resonances.** A fixed bank of resonances (body boom around 80 Hz,
-  muffler, rasp) doesn't move with rpm. Different harmonics light up as the revs climb,
-  as in a real car.
+  muffler, rasp) doesn't move with rpm. Different harmonics light up as the
+  revs climb, as in a real car.
 - **Intake howl.** Intake strokes ring through plenum and runner
   resonances, with air rush that grows with throttle (individual throttle
   bodies, GT3-style).
@@ -257,7 +279,7 @@ loudness. Change it there to make an engine deeper or brighter.
 - **Inline-four**: 1-2-4-3, 4-2-1 headers, short sharp pulses, a loud airbox
   howl and very short pipes, for a scream rather than a rumble.
 
-### The jet, the freighter and the horse
+#### The jet, the freighter and the horse
 
 - **Turbofan** (`js/synth-jet.js`): the fan's blade-passing tone (24 blades)
   and its harmonic, a moaning pair of tones while taxiing, the core
@@ -285,7 +307,7 @@ loudness. Change it there to make an engine deeper or brighter.
 
 All the synths together use a few percent of one desktop CPU core.
 
-## The virtual drivetrain
+### The virtual drivetrain
 
 `js/vehicle.js` models the engines and their gearboxes. For the flat six, a
 992 GT3-style PDK:
@@ -312,7 +334,7 @@ lag, slower from idle) and its thrust reversers, the freighter's power level
 and hyperspace jump, and the horse's gait chosen from your speed (with
 hysteresis), the whip, and its moods while standing.
 
-## How the phone is understood
+### How the phone is understood
 
 `js/fusion.js`:
 
@@ -324,9 +346,8 @@ hysteresis), the whip, and its moods while standing.
   rises towards the dashboard, so a phone lying in it (about 45°) always has
   its screen facing up and back, whether its top points forward or back, and
   even in landscape. Forward is then "behind the screen", flattened to
-  horizontal, so the throttle is right from the first second. The car screen
-  shows the detected position and angle, for example *Tesla dock, 45°*. The
-  same logic covers upright dash and vent holders.
+  horizontal, so the throttle is right from the first second. The same logic
+  covers upright dash and vent holders.
 - A phone lying flat gives no such hint, so it isn't trusted until it has
   calibrated, and it can never throttle backwards.
 - Picking the phone up is detected (it spins), and it recalibrates once it is
@@ -342,20 +363,20 @@ hysteresis), the whip, and its moods while standing.
 
 | File | What it does |
 | --- | --- |
-| `index.html` | Car screen: dial, start button, neon sign, pairing and simulator. |
+| `index.html` | Car screen: dial, start button, neon sign, pairing, G-meter and simulator. |
 | `phone.html` | Phone screen: pairing and motion streaming. |
 | `style.css` | Styles for both pages. |
 | `js/app.js` | Car page: wires sensors, fusion, vehicle, audio, link and UI together. |
 | `js/ui.js` | Car screen rendering (dial, readouts, the animated neon sign, G-meter with saved maxima, panels, settings). |
 | `js/sounds.js` | The list of sounds: names, dials, labels, which model and synth. |
+| `js/signs.js` | The neon sign for each sound: icon, lettering, colour. |
 | `js/vehicle.js` | Virtual piston engines and gearboxes (flat six, V8, superbike). |
 | `js/powertrains.js` | Turbofan, space freighter and horse models. |
-| `js/signs.js` | The neon sign for each sound: icon, lettering, colour. |
 | `js/fusion.js` | GPS + phone sensor fusion and automatic calibration. |
 | `js/engine-worklet.js` | The AudioWorklet: hosts the synths and switches between them. |
 | `js/synth-piston.js` | Engine synthesizer and its three voicings. |
 | `js/synth-jet.js`, `js/synth-freighter.js`, `js/synth-carriage.js` | The other synthesizers. |
-| `js/dsp.js` | Filters, resonators and oscillators shared by the synths. |
+| `js/dsp.js` | Filters, resonators, oscillators, flanger and reverb shared by the synths. |
 | `js/audio.js` | Web Audio graph, limiter, ScriptProcessor fallback. |
 | `js/gps.js` | Geolocation tracking and speed. |
 | `js/simulator.js` | Virtual pedals and a simple EV model. |
@@ -365,8 +386,10 @@ hysteresis), the whip, and its moods while standing.
 | `js/phone.js` | Phone page logic. |
 | `js/config.js` | Relays and rates. |
 | `sw.js` | Offline support (network first). |
-| `.htaccess` | HTTPS redirect, file types and caching for Hostinger. |
+| `.htaccess` | HTTPS redirect, file types and caching for Apache hosts such as Hostinger. |
+| `assets/` | App icon and the self-hosted fonts, with their licences. |
 | `tests/` | Unit tests (`npm test`, Node 20+, no dependencies). |
+| `docs/` | The screenshots in this README. |
 
 ## Development
 
@@ -374,24 +397,23 @@ hysteresis), the whip, and its moods while standing.
 npm test
 ```
 
-This runs the tests for the drivetrain, sensor fusion and synth. Add
-`?noworklet` to force the audio fallback, or `?broker=…` to use another
-relay. In the browser console, `untesled` exposes the live objects, for
-example `untesled.vehicle.rpm`.
+There is nothing to install: the tests use Node's built-in test runner and
+run on every push (see the badge above). They cover the drivetrains, the
+sensor fusion and calibration, every sound's model from start to stop, and
+offline renders of the synths, checked for silence, loudness, clipping,
+pitch and rhythm.
 
-What has been verified so far:
+In the browser, add `?noworklet` to force the audio fallback, or
+`?broker=…` to use another relay. In the console, `untesled` exposes the live
+objects, for example `untesled.vehicle.rpm` or `untesled.fusion.v`.
 
-- In headless Chromium:
-  - pairing through the real QR code over https/wss;
-  - phones emulated as Android, and as iPhone with its permission prompt and
-    sign convention;
-  - relay failover and phone takeover;
-  - the simulator and both audio paths;
-  - offline start.
-- Offline renders of the synth, checked for levels, spectrum and CPU.
+Beyond the unit tests, the app has been exercised end to end in headless
+Chromium: pairing through the real QR code over https/wss, phones emulated as
+Android and as iPhone (with its permission prompt and sign convention), relay
+failover and phone takeover, the simulator, both audio paths, offline start,
+and the layout at in-car, desktop, portrait and phone sizes.
 
-It has not been tried in a real Tesla yet. If something behaves differently
-there, the console object above is the place to look.
+Issues and pull requests are welcome.
 
 ## Troubleshooting
 
@@ -417,12 +439,16 @@ there, the console object above is the place to look.
 - **"Another phone is connected".** The last phone to connect wins. Tap
   **Use this phone** to take over.
 
+If something behaves differently in your car, the `untesled` console object
+(see [Development](#development)) shows what the app is seeing.
+
 ## Privacy and safety
 
 - Nothing is recorded or uploaded except the live motion stream. It carries
   only acceleration plus the engine's rpm, gear and speed, never location.
   It passes through public relays, under a topic named after your pairing
-  code; for privacy, use your own broker (see *Configuration*).
+  code; for privacy, use your own broker (see
+  [Configuration](#configuration)).
 - Set the phone up before driving, and never handle it while driving.
 - Keep the car's volume at a level where you can still hear what's around you,
   including emergency vehicles. Synthetic engine sound may be restricted in
@@ -434,12 +460,12 @@ there, the console object above is the place to look.
   [Barlow Semi Condensed](https://fonts.google.com/specimen/Barlow+Semi+Condensed)
   and [Tilt Neon](https://fonts.google.com/specimen/Tilt+Neon), all under the
   SIL Open Font License 1.1. They are served from `assets/fonts/`, with their
-  licenses alongside.
+  licences alongside.
 - The superbike, plane and horse icons are from
-  [Hugeicons](https://hugeicons.com) (MIT licence); the 911, fastback and
-  freighter icons are drawn in the same style for Untesled (licence in
-  `assets/LICENSE-hugeicons.txt`).
-- Untesled is a fan project. It is not affiliated with or endorsed by
-  Porsche, Tesla, Ford, CFM International or Lucasfilm. Every sound is an
-  original synthesis inspired by the real (or fictional) thing, not a
-  recording.
+  [Hugeicons](https://hugeicons.com) (MIT licence, in
+  `assets/LICENSE-hugeicons.txt`); the 911, fastback and freighter icons are
+  drawn in the same style for Untesled.
+- Untesled is a fan project. It is not affiliated with or endorsed by Tesla,
+  Porsche, Ford, CFM International, Lucasfilm or Paramount, and all product
+  names are trademarks of their owners. Every sound is an original synthesis
+  inspired by the real (or fictional) thing, not a recording.

@@ -1,6 +1,7 @@
 /**
  * sounds.js — the sounds you can pick in Settings. Each one brings its own
- * model (how it reacts to the car), synth voice, dial and artwork.
+ * model (how it reacts to the car), synth voice, dial and labels; its neon
+ * sign lives in signs.js.
  */
 
 import { Vehicle, FLAT6, V8, MOTO } from './vehicle.js';

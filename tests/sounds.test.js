@@ -26,7 +26,7 @@ function run(model, seconds, profile, state = { speed: 0 }) {
 
 const idle = () => ({ accel: 0 });
 
-test('every sound has a model, a dial, artwork and sane output from start to stop', () => {
+test('every sound has a model, a dial, a neon sign and sane output from start to stop', () => {
   assert.equal(SOUNDS.length, 6);
   assert.equal(soundById('nope').id, 'flat6');
   for (const s of SOUNDS) {

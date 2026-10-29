@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Vehicle, rpmAtSpeed, pedalEstimate, ENGINE, shiftLights } from '../js/vehicle.js';
+import { Vehicle, rpmAtSpeed, pedalEstimate, FLAT6, shiftLights } from '../js/vehicle.js';
 
 const DT = 1 / 60;
 
@@ -25,7 +25,7 @@ function started(mode = 'sport') {
 test('gearing: 100 km/h in 7th is a believable cruise rpm', () => {
   const rpm = rpmAtSpeed(100 / 3.6, 7);
   assert.ok(rpm > 2400 && rpm < 3100, `got ${rpm}`);
-  const top1 = (ENGINE.limiterRpm / rpmAtSpeed(1, 1)) * 3.6;
+  const top1 = (FLAT6.limiterRpm / rpmAtSpeed(1, 1)) * 3.6;
   assert.ok(top1 > 60 && top1 < 80, `1st gear tops out at ${top1} km/h`);
 });
 
@@ -62,7 +62,7 @@ test('full-power launch: holds gears to near the redline, never over the limiter
   const v = started('sport');
   let speed = 0;
   const shifts = [];
-  const out = drive(v, 14, (t) => {
+  const out = drive(v, 14, () => {
     const accel = speed < 45 ? Math.min(6, 9000 / Math.max(speed, 1) / 25) : 0;
     speed += accel * DT;
     return { speed, accel };
@@ -73,7 +73,7 @@ test('full-power launch: holds gears to near the redline, never over the limiter
   });
   assert.ok(shifts.length >= 3, `upshifts: ${shifts.length}`);
   for (const s of shifts) assert.ok(s.rpm > 8000, `upshift from ${s.from} at ${Math.round(s.rpm)} rpm`);
-  assert.ok(Math.max(...out.map((o) => o.rpm)) <= ENGINE.maxRpm);
+  assert.ok(Math.max(...out.map((o) => o.rpm)) <= FLAT6.maxRpm);
   const accelerating = out.filter((o) => o.t > 0.5 && o.t < 8 && !o.shifting);
   const meanLoad = accelerating.reduce((s, o) => s + o.load, 0) / accelerating.length;
   assert.ok(meanLoad > 0.8, `mean load while flat out: ${meanLoad.toFixed(2)}`);
@@ -125,7 +125,7 @@ test('free rev in neutral bounces off the limiter', () => {
   const out = drive(v, 3, (t) => ({ speed: 0, accel: 0, rev: t < 2.5 ? 1 : 0 }));
   assert.ok(out.some((o) => o.neutral), 'neutral while revving at a standstill');
   const peak = Math.max(...out.map((o) => o.rpm));
-  assert.ok(peak > 8800 && peak <= ENGINE.maxRpm, `peak ${peak}`);
+  assert.ok(peak > 8800 && peak <= FLAT6.maxRpm, `peak ${peak}`);
   const cuts = out.filter((o, i) => i && o.cut && !out[i - 1].cut).length;
   assert.ok(cuts >= 3, `limiter cuts: ${cuts}`);
   assert.ok(out[out.length - 1].overrun > 0, 'lifting off at high revs crackles');

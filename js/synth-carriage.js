@@ -16,15 +16,14 @@ import { sinCycles, soft, coef, Biquad, Pipe, Noise, Saw, Ring } from './dsp.js'
 
 /**
  * Gaits. beats: [stride phase, leg, strength]; legs 0 left fore, 1 right fore,
- * 2 left hind, 3 right hind. duty: share of the stride each hoof is on the
- * ground (used by the artwork's leg animation).
+ * 2 left hind, 3 right hind.
  */
 export const GAITS = [
-  { name: 'Halt', duty: 1, beats: [] },
-  { name: 'Walk', duty: 0.62, beats: [[0, 2, 0.75], [0.25, 0, 0.85], [0.5, 3, 0.75], [0.75, 1, 0.85]] },
-  { name: 'Trot', duty: 0.42, beats: [[0, 2, 0.95], [0.014, 1, 0.9], [0.5, 3, 0.95], [0.514, 0, 0.9]] },
-  { name: 'Canter', duty: 0.36, beats: [[0, 2, 0.9], [0.21, 3, 1], [0.225, 0, 0.92], [0.41, 1, 1.1]] },
-  { name: 'Gallop', duty: 0.3, beats: [[0, 2, 0.95], [0.1, 3, 1], [0.27, 0, 1.02], [0.37, 1, 1.15]] },
+  { name: 'Halt', beats: [] },
+  { name: 'Walk', beats: [[0, 2, 0.75], [0.25, 0, 0.85], [0.5, 3, 0.75], [0.75, 1, 0.85]] },
+  { name: 'Trot', beats: [[0, 2, 0.95], [0.014, 1, 0.9], [0.5, 3, 0.95], [0.514, 0, 0.9]] },
+  { name: 'Canter', beats: [[0, 2, 0.9], [0.21, 3, 1], [0.225, 0, 0.92], [0.41, 1, 1.1]] },
+  { name: 'Gallop', beats: [[0, 2, 0.95], [0.1, 3, 1], [0.27, 0, 1.02], [0.37, 1, 1.15]] },
 ];
 
 const WHINNY_TIME = 1.9;

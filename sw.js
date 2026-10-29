@@ -4,7 +4,7 @@
  * cache is only used when the network fails or takes more than 4 s.
  */
 
-const CACHE = 'untesled-v3';
+const CACHE = 'untesled-v4';
 const ASSETS = [
   './',
   'index.html',
