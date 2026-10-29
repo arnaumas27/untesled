@@ -38,6 +38,7 @@ accelerometer gives an instant throttle.
 - [Troubleshooting](#troubleshooting)
 - [Privacy and safety](#privacy-and-safety)
 - [Credits](#credits)
+- [License](#license)
 
 ## The sounds
 
@@ -469,3 +470,15 @@ If something behaves differently in your car, the `untesled` console object
   Porsche, Ford, CFM International, Lucasfilm or Paramount, and all product
   names are trademarks of their owners. Every sound is an original synthesis
   inspired by the real (or fictional) thing, not a recording.
+
+## License
+
+Untesled is free for any **noncommercial** use: personal use, hobby
+projects, study, research, schools and non-profits. You may use it, copy it,
+change it and share your changes, as long as you keep the copyright notice
+and the licence with it. Selling it, or using it in a commercial product or
+service, is not allowed without permission; for that, open an issue to ask.
+
+The full terms are the [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+The fonts and the Hugeicons icons keep their own licences (see
+[Credits](#credits)).
