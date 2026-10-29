@@ -216,3 +216,73 @@ export class Saw {
     return y;
   }
 }
+
+/** Short modulated delay with feedback: flanging and phasing (the sci-fi "swoosh"). */
+export class Flanger {
+  constructor(sr, maxMs = 14) {
+    this.buf = new Float32Array(Math.ceil((sr * maxMs) / 1000) + 4);
+    this.i = 0;
+  }
+
+  /** Returns the delayed signal; mix it with the dry input. */
+  run(x, delaySamples, feedback) {
+    const buf = this.buf;
+    const size = buf.length;
+    let rp = this.i - delaySamples;
+    if (rp < 0) rp += size;
+    const i0 = rp | 0;
+    const fr = rp - i0;
+    const i1 = i0 + 1 >= size ? 0 : i0 + 1;
+    const d = buf[i0] + (buf[i1] - buf[i0]) * fr;
+    buf[this.i] = x + d * feedback;
+    if (++this.i >= size) this.i = 0;
+    return d;
+  }
+}
+
+/**
+ * A small stereo reverb (Schroeder/Freeverb style: damped combs, then
+ * allpasses). After run(), read the wet signal from .L and .R.
+ */
+export class Reverb {
+  constructor(sr, { size = 1, feedback = 0.8, damping = 0.3 } = {}) {
+    const k = (sr / 44100) * size;
+    const make = (n) => ({ buf: new Float32Array(Math.max(2, Math.round(n * k))), i: 0, store: 0 });
+    this.combs = [[1116, 1188, 1277, 1356, 1422], [1139, 1211, 1300, 1379, 1445]].map((set) => set.map(make));
+    this.allpasses = [[556, 441], [579, 464]].map((set) => set.map(make));
+    this.fb = feedback;
+    this.damp = damping;
+    this.L = 0;
+    this.R = 0;
+  }
+
+  _channel(c, x) {
+    const fb = this.fb;
+    const damp = this.damp;
+    let sum = 0;
+    const combs = this.combs[c];
+    for (let k = 0; k < combs.length; k++) {
+      const cb = combs[k];
+      const y = cb.buf[cb.i];
+      cb.store = y * (1 - damp) + cb.store * damp;
+      cb.buf[cb.i] = x + cb.store * fb;
+      if (++cb.i >= cb.buf.length) cb.i = 0;
+      sum += y;
+    }
+    let y = sum * 0.2;
+    const aps = this.allpasses[c];
+    for (let k = 0; k < aps.length; k++) {
+      const ap = aps[k];
+      const b = ap.buf[ap.i];
+      ap.buf[ap.i] = y + b * 0.5;
+      if (++ap.i >= ap.buf.length) ap.i = 0;
+      y = b - y;
+    }
+    return y;
+  }
+
+  run(inL, inR) {
+    this.L = this._channel(0, inL);
+    this.R = this._channel(1, inR);
+  }
+}

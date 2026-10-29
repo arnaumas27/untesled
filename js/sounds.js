@@ -83,7 +83,7 @@ export const SOUNDS = [
     id: 'freighter',
     ready: 'power up the reactor',
     name: 'Space freighter',
-    hint: 'Sci-fi sublight engines, Millennium Falcon style. At a standstill, hold the button to jump to hyperspace.',
+    hint: 'Film sci-fi starship drive: pulsing warp-core drone, metallic roar, spacey swirl. At a standstill, hold the button to jump to hyperspace.',
     make: () => new Freighter(),
     dial: { max: 100, red: 90, major: 10, minor: 5, label: (v) => (v % 20 === 0 ? String(v) : ''), unit: 'power %' },
     lights: [60, 95],

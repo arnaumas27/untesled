@@ -136,7 +136,7 @@ with its stride.
 | **Classic V8** | A 70s muscle car: lumpy, burbling V8 idle, lazy 3-speed automatic with a slipping torque converter, no rev limiter, it just runs out of breath at 5,800 rpm. | rpm | Revs in neutral. |
 | **Superbike** | 1000 cc inline-four screaming to 14,000 rpm, 6-speed with quickshifter, autoblipper and crackle. | rpm | Revs in neutral. |
 | **Jet engine** | CFM56-style turbofan: air-starter whine, light-off, slow spool from idle, fan whine and the takeoff buzz-saw and roar. Brake hard from speed and the thrust reversers deploy. Stopping winds the spools down for a long while. | N1 % | Spools to takeoff thrust. |
-| **Space freighter** | Millennium Falcon-style sublight engines: throbbing, gritty roar and whine. Sometimes the hyperdrive won't catch at the first attempt. | power % | Hold for about three seconds at full power to **jump to hyperspace**. |
+| **Space freighter** | Film sci-fi starship drive (think Star Wars, Star Trek): a deep, pulsing warp-core drone, a gritty metallic roar, a swirling flanger and a big spacey reverb. Sometimes the hyperdrive won't catch at the first attempt. | power % | Hold for about three seconds at full power to **jump to hyperspace**. |
 | **Horse carriage** | Clip-clop! Walk, trot, canter and gallop follow your speed, with iron tyres rumbling, wooden creaks, harness bells, the brake squealing when you stop hard, a whinny when you set off and a snort when you stop. Floor it and the coachman cracks the whip. | strides per minute | The horse paws the ground, then rears up and whinnies. |
 
 ![Settings: pick a sound](docs/screenshot-settings.png)
@@ -265,11 +265,15 @@ loudness. Change it there to make an engine deeper or brighter.
   supersonic, and a broadband jet roar that gets louder and brighter with
   thrust. Start-up has the air starter's rising whine and a light-off whump;
   reverse thrust adds roar and rush.
-- **Space freighter** (`js/synth-freighter.js`): detuned sawtooths through a
-  resonant filter, pulsed like a breathing engine, a ring-modulated roar, a
-  turbine whine and electric crackle, all rising with power. Power-up and
-  power-down glides, a clunk when the reactor catches, the failed-hyperdrive
-  sputter and the hyperspace jump (charge, boom, whoosh).
+- **Space freighter** (`js/synth-freighter.js`): a deep chord of detuned
+  sawtooths (root, fifth, octave, sub-octave) through a resonant filter,
+  swelling with a slow core pulse like a warp core; noise through a metallic
+  comb for the roar; a slowly sweeping flanger on everything; faint glassy
+  shimmer tones; a rush of thrust when you accelerate and electric arcs at
+  full power, all in a large stereo reverb. The drone slides up from a growl
+  with a charging tone at power-up and locks in with a deep "thoom"; at
+  shutdown it sinks into the depths. Plus the failed-hyperdrive sputter and
+  the hyperspace jump (charge, boom with a falling zap, whoosh).
 - **Horse carriage** (`js/synth-carriage.js`): every hoof strike excites a
   few hollow resonances (the clip-clop), a thud and sometimes the clink of a
   shoe, timed by the gait (walk four even beats, trot two diagonal pairs,
